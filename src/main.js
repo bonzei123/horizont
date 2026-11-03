@@ -302,6 +302,7 @@ function updateLive() {
       live: 'GPS live',
       denied: 'Standort blockiert',
       unavailable: 'Kein GPS in diesem Browser',
+      insecure: 'GPS braucht HTTPS',
       manual: 'Handkoordinaten',
     };
     const key = state.settings.useManual ? 'manual' : state.geoStatus;
@@ -359,6 +360,11 @@ function issText() {
 }
 
 function startGeo() {
+  if (!window.isSecureContext) {
+    state.geoStatus = 'insecure';
+    updateLive();
+    return;
+  }
   if (!navigator.geolocation) {
     state.geoStatus = 'unavailable';
     updateLive();

@@ -54,10 +54,23 @@ Bluetooth-Kopfhörer oder -lautsprecher zuerst im Gerät koppeln. Die Seite kann
 
 ## Auf einem NAS mit Docker
 
-Die App bleibt statisch. Der Container ist nur nginx mit dem gebauten `dist/`.
+Die ZIP brauchst du nur, wenn auf dem NAS kein Git liegt. Einmal klonen, danach reicht ein Pull. Die App bleibt statisch. Der Container ist nginx mit dem gebauten `dist/`.
 
 ```bash
-docker compose up -d --build
+cd /volume1/docker
+git clone https://github.com/bonzei123/horizont.git
+cd horizont
+sudo docker compose up -d --build
 ```
 
-Danach liegt die Seite auf Port 7777 des NAS. Der Container selbst hört intern auf 8080, die Zuordnung steht in `docker-compose.yml` und bleibt bei Updates erhalten. Von dieser Arbeitsumgebung aus gibt es keinen Weg zu deinem NAS: kein Host, kein Benutzer, kein Schlüssel. Nichts wurde dort gestartet. Zugangsdaten gehören nicht ins Repo. Wenn ein Agent das später selbst starten soll, braucht die Umgebung `NAS_HOST`, `NAS_USER`, ein eingerichtetes SSH und Docker auf dem NAS, nicht ein Passwort in der Unterhaltung.
+Update, ohne neues Archiv:
+
+```bash
+cd /volume1/docker/horizont
+git pull --ff-only
+sudo docker compose up -d --build
+```
+
+Dieselbe Folge steht in `deploy/update.sh`. In der Aufgabenplanung der Synology kann sie als root laufen. Danach liegt die Seite auf Port 7777 des NAS. Der Container selbst hört intern auf 8080.
+
+GPS funktioniert im Browser nur über HTTPS. `http://` auf die NAS-Adresse, auch durch ein VPN, ist für den Browser unsicher, und er verweigert den Standort. Ein selbst signiertes Zertifikat zählt erst, wenn das Telefon es als vertrauenswürdig gespeichert hat und die Adresse genau zum Namen im Zertifikat passt. In der Systemsteuerung unter Anmeldeportal, Erweitert, Reverse Proxy die Quelle auf HTTPS legen und das Ziel auf `http://localhost:7777`. Ohne Zertifikat bleiben die Koordinaten von Hand eintragbar.

@@ -43,9 +43,11 @@ export function renderFeld(ctx) {
     h('h1', {}, 'Was über dir steht, und wo du stehst.'),
     statusBlock(ctx),
     pos ? coordBlock(ctx, pos) : h('div', { class: 'panel empty-panel' },
-      h('h2', {}, 'Noch kein Ort'),
-      h('p', {}, 'Ohne Standort kannst du trotzdem einen Zeitpunkt stempeln. Die Koordinaten trägst du danach von Hand ein oder erlaubst GPS.'),
-      h('div', { class: 'row-actions' },
+      h('h2', {}, ctx.state.geoStatus === 'insecure' ? 'Standort braucht HTTPS' : 'Noch kein Ort'),
+      h('p', {}, ctx.state.geoStatus === 'insecure'
+        ? 'Der Browser gibt GPS nur über eine https-Adresse frei, deren Zertifikat dieses Gerät akzeptiert. http:// über VPN zählt nicht. Trag die Koordinaten unten von Hand ein, oder öffne die App über das Zertifikat.'
+        : 'Ohne Standort kannst du trotzdem einen Zeitpunkt stempeln. Die Koordinaten trägst du danach von Hand ein oder erlaubst GPS.'),
+      ctx.state.geoStatus === 'insecure' ? null : h('div', { class: 'row-actions' },
         h('button', { class: 'btn btn-primary', type: 'button', onClick: ctx.requestGeo }, 'Standort erlauben'),
       ),
     ),
@@ -69,6 +71,7 @@ function statusBlock(ctx) {
     live: 'GPS live',
     denied: 'Standort blockiert',
     unavailable: 'Kein GPS in diesem Browser',
+    insecure: 'GPS braucht HTTPS',
     manual: 'Handkoordinaten',
   };
   const key = ctx.state.settings.useManual ? 'manual' : ctx.state.geoStatus;
