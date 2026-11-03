@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Horizont</title>
+    <meta
+      name="description"
+      content="Horizont ist eine UAP-Feldapp: GPS, Himmelskarte, CE5-Sitzung und Sichtungsprotokoll. Alles bleibt auf diesem Gerät."
+    />
+    <meta name="theme-color" content="#0e141b" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <script>
+      (function () {
+        try {
+          var raw = localStorage.getItem('horizont.settings');
+          var night = 'amber';
+          if (raw) night = JSON.parse(raw).night || 'amber';
+          if (night !== 'red' && night !== 'day') night = 'amber';
+          document.documentElement.dataset.night = night;
+          document.documentElement.style.colorScheme = night === 'day' ? 'light' : 'dark';
+          var meta = document.querySelector('meta[name="theme-color"]');
+          var colors = { amber: '#0e141b', red: '#120404', day: '#f4efe6' };
+          if (meta) meta.content = colors[night];
+        } catch (e) {}
+      })();
+    </script>
+    <style>
+      html { background: #0e141b; }
+      html[data-night='red'] { background: #120404; }
+      html[data-night='day'] { background: #f4efe6; }
+    </style>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <noscript>
+      <p class="noscript">Horizont braucht JavaScript. Die Sichtungen bleiben danach auf diesem Gerät.</p>
+    </noscript>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

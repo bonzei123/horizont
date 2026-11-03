@@ -1,0 +1,63 @@
+# Horizont
+
+Feldapp für UAP-Beobachtungen. HTML, CSS und JavaScript, ohne Konto und ohne Server. Standort, Himmel, CE5-Sitzung und Sichtungen bleiben in diesem Browser. Dieselbe gebaute Seite läuft lokal und auf GitHub Pages.
+
+## Lokal
+
+Node.js 20 oder neuer.
+
+```bash
+npm install
+npm run dev
+```
+
+Die App liegt auf [http://127.0.0.1:43123](http://127.0.0.1:43123). Der Browser fragt nach dem Standort. Ohne Erlaubnis kannst du Koordinaten von Hand eintragen.
+
+## Statisch bauen
+
+```bash
+npm test
+npm run build
+npm run preview
+```
+
+`dist/` ist die ganze App. Die Pfade sind relativ und funktionieren auf einer Unterseite wie `username.github.io/repo`.
+
+## GitHub Pages
+
+1. Das Repo auf GitHub legen.
+2. Unter Settings → Pages als Quelle **GitHub Actions** wählen.
+3. Ein Push auf `main` startet [`.github/workflows/pages.yml`](.github/workflows/pages.yml).
+
+GPS funktioniert auf GitHub Pages, weil die Seite über HTTPS ausgeliefert wird. Lokal funktioniert es über `localhost`.
+
+## Was drin ist
+
+- Laufende GPS-Koordinaten, Genauigkeit und Kopieren
+- Himmel an diesem Ort: Sonne, Dämmerung, Mondphase, helle Planeten
+- Wolken, Sicht und Wind, wenn Open-Meteo erreichbar ist
+- Aktuelle ISS-Lage, wenn `wheretheiss.at` erreichbar ist
+- Kompass, falls das Gerät einen hat
+- Sichtung stempeln: Zeitpunkt und Ort sofort, Beschreibung danach
+- Prüfung auf Flugzeug, Satellit, Starlink und helle Planeten
+- CE5-Sitzung in fünf Phasen, etwa 35 Minuten, mit Stimme, die weiterführt, Pause und eigenem Stempel
+- Ruheton in Phase zwei und drei, Ausgabe wählbar, soweit der Browser das kann
+- Rotlicht für die Nachtsehschärfe, dazu Nacht- und Tagdarstellung
+- Karte der eigenen Punkte
+- Export und Import als JSON
+
+Fotos bleiben im Browser und kommen im JSON-Export nicht mit. Eine Meldung an die [GEP](https://www.uap-research.org/ufo-uap-meldestelle/) schickt die App nicht selbst ab. Der Link liegt in der Meldung.
+
+CE5 ist hier der öffentlich beschriebene Übungsrahmen: ruhige Absicht, stille Beobachtung, Protokoll. Die Stimme führt durch die Phasen. Der Ruheton ist eine leise Stütze und kein Signal, und er ist nicht die kommerzielle CSETI-Tonfolge. Die App verspricht keinen Kontakt. Laser gehören nicht dazu. Einen Laser auf ein Luftfahrzeug zu richten ist in Deutschland strafbar.
+
+Bluetooth-Kopfhörer oder -lautsprecher zuerst im Gerät koppeln. Die Seite kann kein Gerät paaren. Wo der Browser es erlaubt, wählt „Ausgabe wählen“ die schon gekoppelte Quelle für die Töne. Die gesprochene Stimme folgt auf vielen Telefonen der Systemausgabe. Den Bildschirm während der Führung anlassen, sonst stoppt das Telefon die Stimme oft mit dem Sperren.
+
+## Auf einem NAS mit Docker
+
+Die App bleibt statisch. Der Container ist nur nginx mit dem gebauten `dist/`.
+
+```bash
+docker compose up -d --build
+```
+
+Danach liegt die Seite auf Port 8080 des NAS. Von dieser Arbeitsumgebung aus gibt es keinen Weg zu deinem NAS: kein Host, kein Benutzer, kein Schlüssel. Nichts wurde dort gestartet. Zugangsdaten gehören nicht ins Repo. Wenn ein Agent das später selbst starten soll, braucht die Umgebung `NAS_HOST`, `NAS_USER`, ein eingerichtetes SSH und Docker auf dem NAS, nicht ein Passwort in der Unterhaltung.

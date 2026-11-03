@@ -1,0 +1,19 @@
+{
+  "name": "Horizont",
+  "short_name": "Horizont",
+  "description": "UAP-Feldprotokoll mit GPS, CE5-Sitzung und Sichtungsbuch.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "lang": "de",
+  "background_color": "#0e141b",
+  "theme_color": "#0e141b",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
