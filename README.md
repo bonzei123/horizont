@@ -60,4 +60,4 @@ Die App bleibt statisch. Der Container ist nur nginx mit dem gebauten `dist/`.
 docker compose up -d --build
 ```
 
-Danach liegt die Seite auf Port 8080 des NAS. Von dieser Arbeitsumgebung aus gibt es keinen Weg zu deinem NAS: kein Host, kein Benutzer, kein Schlüssel. Nichts wurde dort gestartet. Zugangsdaten gehören nicht ins Repo. Wenn ein Agent das später selbst starten soll, braucht die Umgebung `NAS_HOST`, `NAS_USER`, ein eingerichtetes SSH und Docker auf dem NAS, nicht ein Passwort in der Unterhaltung.
+Danach liegt die Seite auf Port 7777 des NAS. Der Container selbst hört intern auf 8080, die Zuordnung steht in `docker-compose.yml` und bleibt bei Updates erhalten. Von dieser Arbeitsumgebung aus gibt es keinen Weg zu deinem NAS: kein Host, kein Benutzer, kein Schlüssel. Nichts wurde dort gestartet. Zugangsdaten gehören nicht ins Repo. Wenn ein Agent das später selbst starten soll, braucht die Umgebung `NAS_HOST`, `NAS_USER`, ein eingerichtetes SSH und Docker auf dem NAS, nicht ein Passwort in der Unterhaltung.

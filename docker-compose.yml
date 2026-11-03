@@ -2,5 +2,5 @@ services:
   horizont:
     build: .
     ports:
-      - "8080:8080"
+      - "7777:8080"
     restart: unless-stopped
