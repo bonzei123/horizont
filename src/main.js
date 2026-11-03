@@ -1,4 +1,5 @@
 import {
+  applyFieldSound,
   closeGuide,
   enterPhase,
   finishPhase,
@@ -8,8 +9,6 @@ import {
   pauseGuide,
   pickAudioOutput,
   playProbe,
-  quietTone,
-  resumeTone,
   setGuideVolume,
   stopGuide,
   unlockGuide,
@@ -91,6 +90,7 @@ const ctx = {
   advancePhase,
   setGuide,
   setTone,
+  setWhistle,
   setVolume,
   pickOutput,
   probeTone,
@@ -595,9 +595,22 @@ function startSession() {
   });
   state.sessions.push(session);
   void db.putSession(session);
-  if (state.settings.guide) enterPhase(session, { tone: state.settings.tone, sinkId: state.settings.sinkId });
-  else void unlockGuide(state.settings.sinkId);
+  try {
+    if (state.settings.guide) enterPhase(session, soundOpts());
+    else void unlockGuide(state.settings.sinkId);
+  } catch {
+    toast('Die Führung konnte den Ton nicht starten. Der Ablauf läuft trotzdem.');
+  }
   location.hash = `#/ce5/sitzung/${session.id}`;
+}
+
+function soundOpts(extra = {}) {
+  return {
+    tone: state.settings.tone,
+    whistle: state.settings.whistle,
+    sinkId: state.settings.sinkId,
+    ...extra,
+  };
 }
 
 async function handoff(session) {
@@ -616,7 +629,7 @@ async function togglePause(session) {
   if (session.pausedAt) {
     session.pausedMs += now - session.pausedAt;
     session.pausedAt = null;
-    if (state.settings.guide) enterPhase(session, { tone: state.settings.tone, sinkId: state.settings.sinkId });
+    if (state.settings.guide) enterPhase(session, soundOpts());
   } else {
     session.pausedAt = now;
     pauseGuide();
@@ -641,7 +654,7 @@ async function advancePhase(session, { guided = false } = {}) {
     if (state.settings.guide) closeGuide();
     else stopGuide();
   } else if (state.settings.guide) {
-    enterPhase(session, { tone: state.settings.tone, sinkId: state.settings.sinkId });
+    enterPhase(session, soundOpts());
   }
   if (state.route.name === 'sitzung' && state.route.id === session.id) {
     if (canRebuild() || session.completed) render();
@@ -666,16 +679,20 @@ function setGuide(value) {
   if (!value) stopGuide();
   else {
     const session = openSession();
-    if (session && !session.pausedAt) enterPhase(session, { tone: state.settings.tone, sinkId: state.settings.sinkId, again: true });
+    if (session && !session.pausedAt) enterPhase(session, soundOpts({ again: true }));
   }
 }
 
 function setTone(value) {
   state.settings.tone = value;
   db.saveSettings(state.settings);
-  const session = openSession();
-  if (!value) quietTone();
-  else if (session && !session.pausedAt) resumeTone(session);
+  applyFieldSound(openSession(), { tone: value, whistle: state.settings.whistle });
+}
+
+function setWhistle(value) {
+  state.settings.whistle = value;
+  db.saveSettings(state.settings);
+  applyFieldSound(openSession(), { tone: state.settings.tone, whistle: value });
 }
 
 function setVolume(value) {
@@ -707,7 +724,7 @@ async function probeTone() {
 function repeatPhase(session) {
   state.settings.guide = true;
   db.saveSettings(state.settings);
-  enterPhase(session, { tone: state.settings.tone, sinkId: state.settings.sinkId, again: true });
+  enterPhase(session, soundOpts({ again: true }));
 }
 
 async function attachPhoto(sighting, file, input) {

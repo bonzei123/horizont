@@ -1,3 +1,5 @@
+import { createId } from './id.js';
+
 export const PHASES = [
   {
     id: 'ort',
@@ -18,7 +20,7 @@ export const PHASES = [
     minutes: 8,
     lead: 'Ein Satz, kein Wunschkonzert.',
     drone: true,
-    speech: 'Phase zwei. Kohärente Absicht. Acht Minuten. Sitz bequem und spür den Boden. Atme so, dass der Bauch mitgeht. Der Satz, nur innerlich: Kontakt in Frieden, ohne Schaden, in Klarheit. Wenn der Kopf abschweift, komm zu dem Satz zurück. Es ist eine Einladung, keine Forderung. Wenn Angst kommt, brich ab und geh nach Hause. Ein leiser Ton kann jetzt mitlaufen. Er ist für dich, kein Signal an den Himmel.',
+    speech: 'Phase zwei. Kohärente Absicht. Acht Minuten. Sitz bequem und spür den Boden. Atme so, dass der Bauch mitgeht. Der Satz, nur innerlich: Kontakt in Frieden, ohne Schaden, in Klarheit. Wenn der Kopf abschweift, komm zu dem Satz zurück. Es ist eine Einladung, keine Forderung. Wenn Angst kommt, brich ab und geh nach Hause. Ein leiser Ton kann jetzt mitlaufen, wenn du ihn angeschaltet hast. Er ist für dich, kein Signal an den Himmel.',
     paragraphs: [
       'Der Kern der Übung ist kein Trick. Es ist ein ruhiger, wiederholter innerer Zustand. Greer nennt das kohärentes Denken: wenig inneres Geplapper, eine friedliche Absicht, die sich nicht in Aufregung zerlegt. Ein leiser Ton aus dieser App ist nur eine Stütze für dich. Er ist kein Signal.',
       'Sitz bequem. Spür den Boden unter dir. Atme so, dass der Bauch mitgeht, ohne die Atmung zu zählen wie eine Aufgabe. Wenn der Kopf in den Tag zurückläuft, komm zu einem Satz zurück und sag ihn nur innerlich: Kontakt in Frieden, ohne Schaden, in Klarheit.',
@@ -76,7 +78,7 @@ export function protocolMinutes() {
 
 export function createSession(partial = {}, now = Date.now()) {
   return {
-    id: partial.id || crypto.randomUUID(),
+    id: partial.id || createId(),
     startedAt: partial.startedAt ?? now,
     endedAt: partial.endedAt ?? null,
     lat: Number.isFinite(partial.lat) ? partial.lat : null,

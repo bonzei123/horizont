@@ -42,13 +42,14 @@ GPS funktioniert auf GitHub Pages, weil die Seite über HTTPS ausgeliefert wird.
 - Prüfung auf Flugzeug, Satellit, Starlink und helle Planeten
 - CE5-Sitzung in fünf Phasen, etwa 35 Minuten, mit Stimme, die weiterführt, Pause und eigenem Stempel
 - Ruheton in Phase zwei und drei, Ausgabe wählbar, soweit der Browser das kann
+- Optionaler Dog Whistle, zu Beginn aus, nur in Phase zwei und drei
 - Rotlicht für die Nachtsehschärfe, dazu Nacht- und Tagdarstellung
 - Karte der eigenen Punkte
 - Export und Import als JSON
 
 Fotos bleiben im Browser und kommen im JSON-Export nicht mit. Eine Meldung an die [GEP](https://www.uap-research.org/ufo-uap-meldestelle/) schickt die App nicht selbst ab. Der Link liegt in der Meldung.
 
-CE5 ist hier der öffentlich beschriebene Übungsrahmen: ruhige Absicht, stille Beobachtung, Protokoll. Die Stimme führt durch die Phasen. Der Ruheton ist eine leise Stütze und kein Signal, und er ist nicht die kommerzielle CSETI-Tonfolge. Die App verspricht keinen Kontakt. Laser gehören nicht dazu. Einen Laser auf ein Luftfahrzeug zu richten ist in Deutschland strafbar.
+CE5 ist hier der öffentlich beschriebene Übungsrahmen: ruhige Absicht, stille Beobachtung, Protokoll. Die Stimme führt durch die Phasen. Der Ruheton ist eine leise Stütze und kein Signal, und er ist nicht die kommerzielle CSETI-Tonfolge. Der Dog Whistle ist ein zusätzlicher Schalter und zu Beginn aus. Er spielt denselben öffentlichen Stapel, den mehrere JavaScript-Beispiele erzeugen: 100 Hz mit 7,83 Hz, 432 Hz, 528 Hz, kurze Töne bei 2,5 kHz und leise Pings bei 17 kHz. Die Übung braucht ihn nicht, und die App behauptet nicht, dass er etwas am Himmel bewirkt. Laser gehören nicht dazu. Einen Laser auf ein Luftfahrzeug zu richten ist in Deutschland strafbar.
 
 Bluetooth-Kopfhörer oder -lautsprecher zuerst im Gerät koppeln. Die Seite kann kein Gerät paaren. Wo der Browser es erlaubt, wählt „Ausgabe wählen“ die schon gekoppelte Quelle für die Töne. Die gesprochene Stimme folgt auf vielen Telefonen der Systemausgabe. Den Bildschirm während der Führung anlassen, sonst stoppt das Telefon die Stimme oft mit dem Sperren.
 
@@ -74,3 +75,5 @@ sudo docker compose up -d --build
 Dieselbe Folge steht in `deploy/update.sh`. In der Aufgabenplanung der Synology kann sie als root laufen. Danach liegt die Seite auf Port 7777 des NAS. Der Container selbst hört intern auf 8080.
 
 GPS funktioniert im Browser nur über HTTPS. `http://` auf die NAS-Adresse, auch durch ein VPN, ist für den Browser unsicher, und er verweigert den Standort. Ein selbst signiertes Zertifikat zählt erst, wenn das Telefon es als vertrauenswürdig gespeichert hat und die Adresse genau zum Namen im Zertifikat passt. In der Systemsteuerung unter Anmeldeportal, Erweitert, Reverse Proxy die Quelle auf HTTPS legen und das Ziel auf `http://localhost:7777`. Ohne Zertifikat bleiben die Koordinaten von Hand eintragbar.
+
+Die geführte Sitzung startet auch über `http`. Vorher ist der Start dort abgebrochen, weil der Browser ohne Zertifikat `crypto.randomUUID` verweigert und die Sitzung keine Kennung bekam. Stimme und Uhr laufen danach. Das Wachhalten des Bildschirms bleibt an HTTPS gebunden, deshalb den Bildschirm anlassen.

@@ -9,7 +9,8 @@ import {
   haversineKm,
   satelliteElevationDeg,
 } from '../src/format.js';
-import { PHASES, phaseDue, phaseRemainingMs, protocolMinutes } from '../src/protocol.js';
+import { createId } from '../src/id.js';
+import { PHASES, createSession, phaseDue, phaseRemainingMs, protocolMinutes } from '../src/protocol.js';
 import {
   confusionNotes,
   createSighting,
@@ -66,6 +67,22 @@ test('Berlin is in astronomical night on a November evening', () => {
   assert.ok(sky.sun.altitude < -18);
   assert.ok(sky.planets.length >= 0);
   assert.equal(typeof sky.moon.phaseName, 'string');
+});
+
+test('ids keep working when the page is not a secure context', () => {
+  assert.match(createId(), /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  const desc = Object.getOwnPropertyDescriptor(crypto, 'randomUUID');
+  Object.defineProperty(crypto, 'randomUUID', { value: undefined, configurable: true, writable: true });
+  try {
+    const session = createSession();
+    const sighting = createSighting();
+    assert.match(session.id, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    assert.match(sighting.id, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    assert.notEqual(session.id, sighting.id);
+  } finally {
+    if (desc) Object.defineProperty(crypto, 'randomUUID', desc);
+    else delete crypto.randomUUID;
+  }
 });
 
 test('sighting keeps a stamped moment and safe defaults', () => {

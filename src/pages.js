@@ -363,7 +363,7 @@ function photoBlock(sighting) {
 function audioPanel(ctx) {
   return h('div', { class: 'panel stack' },
     h('h2', {}, 'Führung'),
-    h('p', { class: 'hint' }, 'Die Stimme liest jede Phase vor und geht weiter, wenn die Zeit um ist. Der Ruheton läuft nur in Phase zwei und drei.'),
+    h('p', { class: 'hint' }, 'Die Stimme liest jede Phase vor und geht weiter, wenn die Zeit um ist. Der Ruheton ist eine leise Stütze in Phase zwei und drei. Der Dog Whistle ist aus und für die Übung unnötig.'),
     audioControls(ctx),
   );
 }
@@ -373,6 +373,8 @@ function audioControls(ctx) {
   return h('div', { class: 'stack' },
     check('Stimme und automatischer Wechsel', settings.guide, ctx.setGuide),
     check('Ruheton in Phase zwei und drei', settings.tone, ctx.setTone),
+    check('Dog Whistle, optional', settings.whistle, ctx.setWhistle),
+    h('p', { class: 'hint' }, 'Der Whistle bleibt aus, bis du ihn anschaltest. Dann spielt er nur in Phase zwei und drei, und der Ruheton schweigt. Es ist der öffentliche Stapel aus JavaScript-Beispielen: 100 Hz mit 7,83 Hz, 432 Hz, 528 Hz, kurze Töne bei 2,5 kHz und leise Pings bei 17 kHz. Dafür gibt es keinen Beleg. 17 kHz hören oft noch Kinder und Tiere.'),
     field('Lautstärke', h('input', {
       type: 'range', min: '0.15', max: '1', step: '0.05', value: settings.volume,
       onInput: (event) => ctx.setVolume(Number(event.target.value)),
@@ -410,7 +412,7 @@ export function renderCe5(ctx) {
         h('li', {}, 'Kein Laser. Auf Luftfahrzeuge gerichtet ist das in Deutschland strafbar.'),
         h('li', {}, 'Rotes Licht schont die Augen. Der Schalter sitzt oben.'),
         h('li', {}, 'Bluetooth zuerst im Gerät koppeln. Die Seite kann kein Headset selbst paaren.'),
-        h('li', {}, 'Lass den Bildschirm an. Manche Telefone stoppen die Stimme, sobald das Display ausgeht.'),
+        h('li', {}, 'Lass den Bildschirm an. Ohne HTTPS hält das Telefon ihn nicht von allein wach, und manche Geräte stoppen dann die Stimme.'),
       ),
     ),
   );
@@ -552,6 +554,7 @@ export function renderWissen() {
     h('p', {}, 'J. Allen Hynek sortierte Berichte nach Nähe und Spur, nicht nach einer Erklärung. Nachtlicht, Tagesscheibe, Radar und Sicht zugleich, dann die nahen Begegnungen: nur gesehen, mit physikalischer Wirkung, mit einer beschriebenen Gestalt. CE5 steht nicht in dieser Skala. Den Begriff hat Steven Greer später für einen von Menschen begonnenen Kontaktversuch gesetzt.'),
     h('h2', {}, 'Was die Übung ist'),
     h('p', {}, 'Die CE5-Sitzung folgt dem öffentlich beschriebenen Ablauf: sicherer Ort, ruhige und friedliche Absicht, eine kurze innere Einladung, dann schweigendes Schauen und ein Protokoll. Eine Stimme führt durch die Phasen. In der zweiten und dritten Phase kann ein leiser Ton mitlaufen. Der ist für dich, kein Signal an den Himmel, und er ist nicht die kommerzielle Tonfolge von CSETI. Lichtsignale und Laser sind nicht dabei. Wer einen Laser in den Himmel hält, gefährdet Luftfahrzeuge. Das ist in Deutschland strafbar.'),
+    h('p', {}, 'Ein UAP-Dog-Whistle gehört nicht zur Übung. Öffentliche JavaScript-Beispiele stapeln 100 Hz mit 7,83 Hz, 432 Hz, 528 Hz, kurze Töne bei 2,5 kHz und Pings bei 17 kHz. Die Vorlage ist ein unbestätigter Beitrag, kein Messverfahren. In Horizont ist das ein Schalter und zu Beginn aus. Die Führung läuft ohne ihn. In der stillen Wache bleibt er aus, damit du den Himmel hörst.'),
     h('h2', {}, 'Was fast immer etwas Bekanntes ist'),
     h('ul', {},
       h('li', {}, 'Venus und Jupiter stehen still und sind grell. Die App zeigt, wenn sie über dem Horizont sind.'),

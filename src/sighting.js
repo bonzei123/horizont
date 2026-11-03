@@ -1,3 +1,5 @@
+import { createId } from './id.js';
+
 export const SHAPES = [
   ['punkt', 'Lichtpunkt'],
   ['scheibe', 'Scheibe'],
@@ -50,7 +52,7 @@ export function labelOf(list, id) {
 
 export function createSighting(partial = {}, now = Date.now()) {
   return {
-    id: partial.id || crypto.randomUUID(),
+    id: partial.id || createId(),
     createdAt: partial.createdAt ?? now,
     updatedAt: partial.updatedAt ?? now,
     observedAt: partial.observedAt ?? now,
