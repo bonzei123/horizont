@@ -14,6 +14,7 @@ import {
   stopGuide,
   unlockGuide,
 } from './audio.js';
+import { fieldBriefing } from './briefing.js';
 import { h } from './dom.js';
 import {
   compassNote,
@@ -48,7 +49,7 @@ const NAV = [
   ['#/ce5', 'CE5', 'ce5'],
   ['#/log', 'Logbuch', 'log'],
   ['#/karte', 'Karte', 'karte'],
-  ['#/wissen', 'Wissen', 'wissen'],
+  ['#/wissen', 'Handbuch', 'wissen'],
 ];
 
 const state = {
@@ -117,6 +118,7 @@ const ctx = {
   eyesStarted,
   startEyes,
   stopEyes,
+  togglePack,
   mountMap: (frame) => mountMap(frame, {
     position: activePosition(),
     sightings: state.sightings,
@@ -270,7 +272,7 @@ function render() {
     sitzung: 'Sitzung — Horizont',
     log: 'Logbuch — Horizont',
     karte: 'Karte — Horizont',
-    wissen: 'Wissen — Horizont',
+    wissen: 'Handbuch — Horizont',
   };
   document.title = titles[state.route.name] || 'Horizont';
   let page;
@@ -279,7 +281,7 @@ function render() {
   else if (state.route.name === 'sitzung') page = renderSession(ctx, state.sessions.find((item) => item.id === state.route.id));
   else if (state.route.name === 'log') page = renderLog(ctx);
   else if (state.route.name === 'karte') page = renderMapPage(ctx);
-  else if (state.route.name === 'wissen') page = renderWissen();
+  else if (state.route.name === 'wissen') page = renderWissen(ctx);
   else page = renderFeld(ctx);
   main.replaceChildren(page);
   setNav();
@@ -332,6 +334,8 @@ function updateLive() {
   if (heading) heading.textContent = formatAzimuth(state.heading);
   const headingNote = document.querySelector('[data-live="heading-note"]');
   if (headingNote) headingNote.textContent = compassNote(state.heading, state.headingAbsolute);
+  const lage = document.querySelector('[data-live="lage"]');
+  if (lage) paintBriefing(lage);
   const eyes = document.querySelector('[data-live="eyes"]');
   if (eyes) eyes.textContent = eyesLine(eyesStarted(), state.clock);
   const watch = document.querySelector('[data-live="watch"]');
@@ -358,6 +362,20 @@ function updateLive() {
   if (state.route.name === 'karte') placeYou(pos);
   const running = openSession();
   if (state.settings.guide && phaseDue(running, state.clock)) void handoff(running);
+}
+
+function paintBriefing(lage) {
+  const brief = fieldBriefing({
+    sky: state.sky,
+    weather: state.weather,
+    pass: state.issPass,
+    now: state.clock,
+  });
+  lage.className = `panel lage lage-${brief.tone}`;
+  const title = lage.querySelector('[data-live="lage-title"]');
+  if (title) title.textContent = brief.title;
+  const lines = lage.querySelector('[data-live="lage-lines"]');
+  if (lines) lines.replaceChildren(...brief.lines.map((line) => h('p', {}, line)));
 }
 
 function weatherText() {
@@ -531,6 +549,14 @@ function startEyes() {
 function stopEyes() {
   localStorage.removeItem(EYES_KEY);
   render();
+}
+
+function togglePack(id, checked) {
+  const pack = { ...(state.settings.pack || {}) };
+  if (checked) pack[id] = true;
+  else delete pack[id];
+  state.settings.pack = pack;
+  db.saveSettings(state.settings);
 }
 
 async function enableCompass() {

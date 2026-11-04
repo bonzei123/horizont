@@ -1,3 +1,4 @@
+import { fieldBriefing, PACK } from './briefing.js';
 import { h } from './dom.js';
 import {
   compassNote,
@@ -54,6 +55,7 @@ export function renderFeld(ctx) {
   return h('section', { class: 'screen' },
     h('p', { class: 'kicker' }, 'Feld'),
     h('h1', {}, 'Was über dir steht, und wo du stehst.'),
+    lageBlock(ctx),
     statusBlock(ctx),
     pos ? coordBlock(ctx, pos) : h('div', { class: 'panel empty-panel' },
       h('h2', {}, ctx.state.geoStatus === 'insecure' ? 'Standort braucht HTTPS' : 'Noch kein Ort'),
@@ -71,6 +73,7 @@ export function renderFeld(ctx) {
     weatherBlock(ctx),
     issBlock(ctx),
     eyesBlock(ctx),
+    packFold(ctx),
     compassBlock(ctx),
     h('div', { class: 'big-actions' },
       h('button', { class: 'btn btn-primary btn-xl', type: 'button', onClick: () => ctx.stampAndOpen() }, 'Sichtung melden'),
@@ -78,6 +81,34 @@ export function renderFeld(ctx) {
     ),
     latestBlock(ctx),
   );
+}
+
+function lageBlock(ctx) {
+  const brief = fieldBriefing({
+    sky: ctx.state.sky,
+    weather: ctx.state.weather,
+    pass: ctx.state.issPass,
+    now: ctx.state.clock,
+  });
+  return h('section', { class: `panel lage lage-${brief.tone}`, 'data-live': 'lage' },
+    h('p', { class: 'kicker' }, 'Heute Nacht'),
+    h('h2', { 'data-live': 'lage-title' }, brief.title),
+    h('div', { 'data-live': 'lage-lines' }, ...brief.lines.map((line) => h('p', {}, line))),
+    h('a', { href: '#/wissen' }, 'Packliste, Zuständigkeit und was draußen gilt'),
+  );
+}
+
+function packFold(ctx) {
+  return h('details', { class: 'panel fold' },
+    h('summary', {}, 'Bevor du losgehst'),
+    packList(ctx),
+  );
+}
+
+function packList(ctx) {
+  const pack = ctx.state.settings.pack || {};
+  return h('div', { class: 'stack' }, ...PACK.map(([id, label]) =>
+    check(label, Boolean(pack[id]), (checked) => ctx.togglePack(id, checked))));
 }
 
 function statusBlock(ctx) {
@@ -919,11 +950,54 @@ export function renderMapPage(ctx) {
   );
 }
 
-export function renderWissen() {
+export function renderWissen(ctx) {
   return h('section', { class: 'screen prose-page' },
-    h('p', { class: 'kicker' }, 'Wissen'),
-    h('h1', {}, 'Ein Rahmen für eine unklare Beobachtung.'),
-    h('p', {}, 'UAP heißt unidentified anomalous phenomenon: etwas am Himmel, das du im Moment nicht zuordnen kannst. Das alte Wort UFO meint dasselbe und trägt mehr Mythos mit. Horizont behandelt beides als Beobachtung, nicht als Beweis.'),
+    h('p', { class: 'kicker' }, 'Handbuch'),
+    h('h1', {}, 'Der Begleiter für die Nacht.'),
+    h('p', {}, 'Horizont ist die Lage vor dem Rausgehen, die Packliste, die Zuständigkeit und erst danach das Protokoll. UAP heißt unidentified anomalous phenomenon: etwas am Himmel, das du im Moment nicht zuordnen kannst. UFO meint dasselbe und trägt mehr Mythos mit. Beides bleibt eine Beobachtung.'),
+    h('h2', {}, 'Wenn du etwas siehst'),
+    h('ol', {},
+      h('li', {}, 'Stehen bleiben. Im Auto erst an den Rand, dann nach oben.'),
+      h('li', {}, 'Zeit und Ort in der App stempeln.'),
+      h('li', {}, 'Richtung und Höhe merken, am Himmel antippen.'),
+      h('li', {}, 'Nicht hinterherfahren.'),
+      h('li', {}, 'Filmen mit Horizont, Haus oder Baum im Bild. Das Original behalten.'),
+      h('li', {}, 'Danach zuordnen: Planet, heller Stern, ISS, Sternschnuppe, Ballon, Flugzeug.'),
+    ),
+    h('h2', {}, 'Wer zuständig ist'),
+    h('div', { class: 'stack' },
+      h('div', { class: 'panel' },
+        h('h3', {}, 'Unklar geblieben'),
+        h('p', {}, 'Wenn du es danach noch nicht einordnen kannst, liegt der Text in der Meldung. Den kopierst du selbst zur GEP. Die App schickt ihn nicht weg.'),
+        h('a', { href: 'https://www.uap-research.org/ufo-uap-meldestelle/', target: '_blank', rel: 'noreferrer' }, 'GEP-Meldestelle'),
+      ),
+      h('div', { class: 'panel' },
+        h('h3', {}, 'Strich und Knall'),
+        h('p', {}, 'Unter einer Sekunde, oft mit Spur, manchmal mit einem Laut. Das nimmt der Arbeitskreis Meteore auf.'),
+        h('a', { href: 'https://www.meteoros.de/feuerkugel', target: '_blank', rel: 'noreferrer' }, 'Feuerkugel melden'),
+      ),
+      h('div', { class: 'panel' },
+        h('h3', {}, 'Gefahr'),
+        h('p', {}, 'Unfall, Feuer oder eine blockierte Straße: 110 und 112. Ein Licht am Himmel allein ist kein Notruf.'),
+      ),
+    ),
+    h('h2', {}, 'Bevor du losgehst'),
+    ctx ? packList(ctx) : null,
+    h('h2', {}, 'Draußen'),
+    h('ul', {},
+      h('li', {}, 'Jemandem sagen, wo du bist und wann du zurückkommst.'),
+      h('li', {}, 'Fremdes Grundstück nur mit Erlaubnis.'),
+      h('li', {}, 'Laser bleiben in der Tasche. Einen Laser auf ein Luftfahrzeug zu richten ist in Deutschland strafbar.'),
+      h('li', {}, 'Drohnen bleiben am Boden, sobald etwas fliegt. Viele Gebiete sind für Drohnen gesperrt.'),
+      h('li', {}, 'Menschen, die erkennbar sind, filmst du nur, wenn sie es wissen.'),
+    ),
+    h('h2', {}, 'Gerät'),
+    h('ul', {},
+      h('li', {}, 'Digitaler Zoom macht aus einem Lichtpunkt eine Scheibe. Lieber heranhalten als heranzoomen.'),
+      h('li', {}, 'Ein Fernglas mit 8×42 oder 10×50 zeigt, ob ein Licht Positionslichter und einen Rumpf hat.'),
+      h('li', {}, 'Angelehnt oder vom Stativ filmen. Aus der freien Hand wird ein Stern zum Wackler.'),
+      h('li', {}, 'Unter ein paar Grad plus gehört der Akku in die Innentasche.'),
+    ),
     h('h2', {}, 'Die Hynek-Skala'),
     h('p', {}, 'J. Allen Hynek sortierte Berichte nach Nähe und Spur, nicht nach einer Erklärung. Nachtlicht, Tagesscheibe, Radar und Sicht zugleich, dann die nahen Begegnungen: nur gesehen, mit physikalischer Wirkung, mit einer beschriebenen Gestalt. CE5 steht nicht in dieser Skala. Den Begriff hat Steven Greer später für einen von Menschen begonnenen Kontaktversuch gesetzt.'),
     h('h2', {}, 'Was die Übung ist'),

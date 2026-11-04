@@ -108,6 +108,9 @@ export function skySnapshot(lat, lon, heightMeters = 0, date = new Date()) {
     const hit = SearchAltitude(Body.Sun, observer, -1, date, 2, -18);
     astronomicalNightAt = hit ? hit.date.getTime() : null;
   }
+  const moonUp = moon.altitude > 0;
+  const moonSetAt = moonUp ? nextCrossing(Body.Moon, observer, date, -1, 0) : null;
+  const moonRiseAt = moonUp ? null : nextCrossing(Body.Moon, observer, date, 1, 0);
 
   return {
     at: date.getTime(),
@@ -126,7 +129,18 @@ export function skySnapshot(lat, lon, heightMeters = 0, date = new Date()) {
     planets,
     stars,
     astronomicalNightAt,
+    moonSetAt,
+    moonRiseAt,
   };
+}
+
+function nextCrossing(body, observer, date, direction, altitude) {
+  try {
+    const hit = SearchAltitude(body, observer, direction, date, 2, altitude);
+    return hit ? hit.date.getTime() : null;
+  } catch {
+    return null;
+  }
 }
 
 export function nearbyBrightBodies(sky, direction, windowDeg = 18) {

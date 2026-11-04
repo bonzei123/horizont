@@ -140,6 +140,10 @@ p { margin: 0; }
   border-radius: 18px;
   padding: 14px 16px;
 }
+.lage h2 { font-size: clamp(1.6rem, 4vw, 2.2rem); letter-spacing: -0.03em; margin: 0; }
+.lage-go { border-color: color-mix(in srgb, var(--ok) 55%, var(--line)); }
+.lage-stay { border-color: color-mix(in srgb, var(--muted) 50%, var(--line)); }
+.prose-page h3 { margin: 0 0 6px; font-size: 1.05rem; }
 .fold summary { cursor: pointer; font-weight: 600; }
 .fold .stack { margin-top: 12px; }
 .stack { display: flex; flex-direction: column; gap: 10px; }

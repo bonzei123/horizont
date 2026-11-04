@@ -27,6 +27,7 @@ import {
   reportText,
   toBackup,
 } from '../src/sighting.js';
+import { fieldBriefing } from '../src/briefing.js';
 import { cloudSpan, moonIllumination, moonPhaseName, nextIssPass, showerWatch, skySnapshot, sunBand, windDrift } from '../src/sky.js';
 
 test('coordinates and compass points', () => {
@@ -77,9 +78,46 @@ test('Berlin is in astronomical night on a November evening', () => {
   assert.ok(sky.sun.altitude < -18);
   assert.ok(sky.planets.length >= 0);
   assert.equal(typeof sky.moon.phaseName, 'string');
+  assert.ok(sky.moonSetAt || sky.moonRiseAt);
   const polaris = sky.stars.find((star) => star.name === 'Polarstern');
   assert.ok(polaris.altitude > 45 && polaris.altitude < 60);
   assert.ok(sky.stars.some((star) => star.name === 'Sirius' || star.name === 'Wega' || star.name === 'Capella'));
+});
+
+test('the night briefing says whether to go out', () => {
+  const open = {
+    sun: { altitude: -30 },
+    moon: { altitude: -5, illumination: 0.05, phaseName: 'Neumond' },
+    moonRiseAt: Date.parse('2026-11-05T02:00:00Z'),
+  };
+  const go = fieldBriefing({
+    sky: open,
+    weather: { cloud_cover: 10, temperature_2m: -2 },
+    now: Date.parse('2026-11-04T21:00:00Z'),
+  });
+  assert.equal(go.tone, 'go');
+  assert.equal(go.title, 'Brauchbare Nacht');
+  assert.ok(go.lines.some((line) => line.includes('Innentasche')));
+  assert.ok(go.lines.some((line) => line.includes('Orioniden')));
+  const socked = fieldBriefing({
+    sky: open,
+    weather: { cloud_cover: 95, temperature_2m: 8 },
+    now: Date.parse('2026-11-04T21:00:00Z'),
+  });
+  assert.equal(socked.tone, 'stay');
+  const day = fieldBriefing({
+    sky: { sun: { altitude: 20 }, moon: { altitude: -2, illumination: 0, phaseName: 'Neumond' }, astronomicalNightAt: Date.parse('2026-11-04T20:00:00Z') },
+    now: Date.parse('2026-11-04T12:00:00Z'),
+  });
+  assert.equal(day.tone, 'wait');
+  assert.equal(day.title, 'Tag');
+  const moonlit = fieldBriefing({
+    sky: { sun: { altitude: -25 }, moon: { altitude: 40, illumination: 0.9, phaseName: 'Vollmond' }, moonSetAt: Date.parse('2026-11-05T03:00:00Z') },
+    weather: { cloud_cover: 10, temperature_2m: 8 },
+    now: Date.parse('2026-11-04T22:00:00Z'),
+  });
+  assert.equal(moonlit.title, 'Nacht mit hellem Mond');
+  assert.equal(fieldBriefing({ now: Date.parse('2026-11-04T22:00:00Z') }).title, 'Ohne Ort kein Lagebild');
 });
 
 test('meteor showers and wind drift stay local', () => {

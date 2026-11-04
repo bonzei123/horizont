@@ -85,6 +85,7 @@ export function loadSettings() {
       sinkId: typeof data.sinkId === 'string' ? data.sinkId : '',
       sinkLabel: typeof data.sinkLabel === 'string' ? data.sinkLabel : '',
       places: cleanPlaces(data.places),
+      pack: cleanPack(data.pack),
     };
   } catch {
     return defaultSettings();
@@ -103,7 +104,17 @@ function defaultSettings() {
     sinkId: '',
     sinkLabel: '',
     places: [],
+    pack: {},
   };
+}
+
+function cleanPack(value) {
+  if (!value || typeof value !== 'object') return {};
+  const pack = {};
+  for (const [key, checked] of Object.entries(value)) {
+    if (typeof key === 'string' && key.length < 24 && checked === true) pack[key] = true;
+  }
+  return pack;
 }
 
 function cleanPlaces(value) {
@@ -133,5 +144,6 @@ export function saveSettings(settings) {
     sinkId: settings.sinkId,
     sinkLabel: settings.sinkLabel,
     places: settings.places,
+    pack: settings.pack,
   }));
 }
