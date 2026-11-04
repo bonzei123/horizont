@@ -41,6 +41,7 @@ import {
   reportText,
 } from './sighting.js';
 import { describeBody, issSummary, nearbyBrightBodies, showerLine, weatherSummary } from './sky.js';
+import { overheadLines } from './traffic.js';
 
 function field(label, control) {
   return h('label', { class: 'field' }, h('span', { class: 'field-label' }, label), control);
@@ -75,6 +76,8 @@ export function renderFeld(ctx) {
     showerBlock(),
     weatherBlock(ctx),
     issBlock(ctx),
+    craftBlock(ctx),
+    satBlock(ctx),
     eyesBlock(ctx),
     packFold(ctx),
     compassBlock(ctx),
@@ -268,6 +271,54 @@ function issBlock(ctx) {
   return h('p', { class: 'panel meta-line', 'data-live': 'iss' }, issSummary(iss, ctx.state.issPass));
 }
 
+function craftBlock(ctx) {
+  return h('section', { class: 'panel' },
+    h('h2', {}, 'Flugzeuge'),
+    h('div', { 'data-live': 'craft' }, ...craftCopy(ctx.state)),
+    h('p', { class: 'hint' }, 'Öffentliche ADS-B-Lage, etwa 90 km um dich, nur was einen Sender hat. Beim Stempeln kommt die Zeile in die Meldung. Ein Flugzeug in der Richtung ist ein Kandidat. Lokal und auf dem NAS. GitHub Pages hat diesen Proxy nicht.'),
+  );
+}
+
+function satBlock(ctx) {
+  return h('section', { class: 'panel' },
+    h('h2', {}, 'Helle Satelliten'),
+    h('div', { 'data-live': 'sats' }, ...satCopy(ctx.state)),
+    h('p', { class: 'hint' }, 'Die Celestrak-Gruppe visual, gut 150 Objekte, die manchmal mit bloßem Auge gehen. Nicht jeder Starlink. Gerechnet wird die Bahn, nicht die Helligkeit. Lokal und auf dem NAS live, sonst der Stand aus dem letzten Build.'),
+  );
+}
+
+function craftCopy(state) {
+  if (!state.craft && state.craftError) return [h('p', {}, 'Die Flugzeuglage ist gerade nicht erreichbar.')];
+  if (!state.craft) return [h('p', {}, 'Flugzeuge werden geladen, sobald ein Ort da ist.')];
+  if (!state.craft.length) return [h('p', {}, 'Gerade kein Flugzeug über 5° Höhe in diesem Umkreis.')];
+  return state.craft.map((plane) => h('p', { class: 'move-row' },
+    h('span', {}, plane.callsign),
+    h('span', {}, `${formatAzimuth(plane.azimuth)} · ${Math.round(plane.elevation)}° hoch · ${Math.round(plane.distanceKm)} km · ${Math.round(plane.altM)} m${plane.type ? ` · ${plane.type}` : ''}`),
+  ));
+}
+
+function satCopy(state) {
+  if (!state.sats && state.satsError) return [h('p', {}, 'Die Bahnen sind gerade nicht erreichbar.')];
+  if (!state.sats) return [h('p', {}, 'Satellitenbahnen werden geladen, sobald ein Ort da ist.')];
+  const note = state.satsStale
+    ? h('p', { class: 'hint' }, 'Celestrak antwortet gerade nicht. Gerechnet wird mit dem mitgelieferten Stand.')
+    : null;
+  const rows = state.sats.length
+    ? state.sats.map((sat) => h('p', { class: 'move-row' },
+      h('span', {}, sat.name),
+      h('span', {}, `${formatAzimuth(sat.azimuth)} · ${Math.round(sat.elevation)}° hoch`),
+    ))
+    : [h('p', {}, 'Gerade keines dieser Objekte über 10° Höhe.')];
+  return [note, ...rows].filter(Boolean);
+}
+
+export function paintMovingSky(state) {
+  const craft = document.querySelector('[data-live="craft"]');
+  if (craft) craft.replaceChildren(...craftCopy(state));
+  const sats = document.querySelector('[data-live="sats"]');
+  if (sats) sats.replaceChildren(...satCopy(state));
+}
+
 function compassBlock(ctx) {
   const heading = ctx.state.heading;
   return h('div', { class: 'panel compass' },
@@ -337,7 +388,11 @@ export function renderReport(ctx, sighting) {
   const hints = h('div', { class: 'hint-stack' });
   const paintHints = () => {
     const bodies = nearbyBrightBodies(ctx.state.sky, sighting.direction);
-    hints.replaceChildren(...confusionNotes(sighting, bodies).map((text) => h('p', {}, text)));
+    const live = overheadLines(ctx.state.craft, ctx.state.sats, sighting.direction);
+    hints.replaceChildren(
+      ...confusionNotes(sighting, bodies).map((text) => h('p', {}, text)),
+      ...live.map((text) => h('p', {}, `Jetzt in der Blickrichtung: ${text}`)),
+    );
   };
   const save = () => {
     sighting.updatedAt = Date.now();
@@ -552,6 +607,11 @@ export function renderReport(ctx, sighting) {
       sketchBlock(sighting, ctx),
       photoBlock(sighting),
       sighting.skyHint ? h('p', { class: 'hint' }, `Zum Zeitpunkt: ${sighting.skyHint}`) : null,
+      sighting.overhead?.length ? h('div', { class: 'panel' },
+        h('h2', {}, 'Zur Stempelzeit in der Nähe'),
+        ...sighting.overhead.map((line) => h('p', {}, line)),
+        h('p', { class: 'hint' }, 'Gespeichert im Moment des Stempels. Ein Treffer in der Richtung bleibt ein Kandidat.'),
+      ) : null,
     ),
     h('div', { class: 'row-actions' },
       h('button', { class: 'btn btn-danger', type: 'button', onClick: () => ctx.removeSighting(sighting) }, 'Meldung löschen'),
@@ -1052,7 +1112,7 @@ export function renderWissen(ctx) {
     h('p', {}, h('a', { href: 'https://www.uap-research.org/ufo-uap-meldestelle/', target: '_blank', rel: 'noreferrer' }, 'GEP-Meldestelle öffnen')),
     h('p', {}, h('a', { href: 'https://www.meteoros.de/feuerkugel', target: '_blank', rel: 'noreferrer' }, 'Feuerkugel an den Arbeitskreis Meteore')),
     h('h2', {}, 'Was Horizont nicht tut'),
-    h('p', {}, 'Nichts verlässt das Gerät, außer du exportierst eine Datei oder öffnest einen externen Link. Es gibt keine gemeinsame Karte, keine Flugzeug-Radarlage und keine Vorhersage aller Satellitenpässe. Dafür bräuchte es ein Backend und laufend neue Bahndaten. Die eigene Meldung, der eigene Himmel und die eigene Sitzung gehen auch ohne Netz, sobald die Seite geladen ist.'),
+    h('p', {}, 'Nichts verlässt das Gerät, außer du exportierst eine Datei, öffnest einen externen Link, oder die Seite holt Wetter, ISS, Flugzeuge und Bahnen. Flugzeuge sind die öffentliche ADS-B-Lage in etwa 90 km, Satelliten die Celestrak-Gruppe visual. Es ist nicht das ganze Register und nicht die Lage von vor einer Stunde. Eine gemeinsame Karte der Meldungen gibt es nicht. Die eigene Meldung und die eigene Sitzung gehen auch ohne Netz, sobald die Seite geladen ist.'),
   );
 }
 

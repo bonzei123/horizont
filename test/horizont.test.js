@@ -28,6 +28,7 @@ import {
   toBackup,
 } from '../src/sighting.js';
 import { editionLabel, onThisDay } from '../src/almanac.js';
+import { overheadLines, parse3le, readCraft, visibleSats } from '../src/traffic.js';
 import { fieldBriefing } from '../src/briefing.js';
 import { parseFeed, selectPosts } from '../src/feeds.js';
 import { CHAPTERS } from '../src/reference.js';
@@ -121,6 +122,27 @@ test('the night briefing says whether to go out', () => {
   });
   assert.equal(moonlit.title, 'Nacht mit hellem Mond');
   assert.equal(fieldBriefing({ now: Date.parse('2026-11-04T22:00:00Z') }).title, 'Ohne Ort kein Lagebild');
+});
+
+test('a plane overhead is a candidate, and a TLE block parses', () => {
+  const plane = readCraft(
+    { lat: 52.5, lon: 13.4 },
+    { lat: 52.55, lon: 13.4, alt_geom: 30000, flight: 'DLH123', t: 'A320' },
+  );
+  assert.ok(plane.elevation > 20);
+  assert.equal(plane.callsign, 'DLH123');
+  assert.equal(readCraft({ lat: 52.5, lon: 13.4 }, { lat: 52.5, lon: 13.4, alt_baro: 'ground' }), null);
+  const lines = overheadLines([plane], [], 0);
+  assert.match(lines[0], /DLH123/);
+  const records = parse3le(`ISS (ZARYA)
+1 25544U 98067A   21265.51782528  .00002182  00000-0  40715-4 0  9990
+2 25544  51.6435  92.8156 0001472  32.4137  52.5778 15.48981354304080
+`);
+  assert.equal(records.length, 1);
+  const sats = visibleSats({ lat: 52.5, lon: 13.4 }, records, new Date('2021-09-22T12:00:00Z'));
+  assert.ok(Array.isArray(sats));
+  const bundled = parse3le(fs.readFileSync(new URL('../public/tle-visual.txt', import.meta.url), 'utf8'));
+  assert.ok(bundled.length > 100);
 });
 
 test('the almanac knows Arnold day and a reddit feed parses', () => {

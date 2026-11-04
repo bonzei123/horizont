@@ -129,6 +129,7 @@ export function createSighting(partial = {}, now = Date.now()) {
     effects: cleanEffects(partial.effects),
     tracks: cleanTracks(partial.tracks),
     skyHint: stringOf(partial.skyHint),
+    overhead: cleanLines(partial.overhead),
     weather: partial.weather && typeof partial.weather === 'object' ? partial.weather : null,
     sessionId: typeof partial.sessionId === 'string' ? partial.sessionId : null,
     photo: partial.photo instanceof Blob ? partial.photo : null,
@@ -157,6 +158,11 @@ function cleanTracks(value) {
 function finiteOrNull(value) {
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
+}
+
+function cleanLines(value) {
+  if (!Array.isArray(value)) return [];
+  return value.filter((line) => typeof line === 'string' && line.trim()).slice(0, 8).map((line) => line.trim().slice(0, 180));
 }
 
 function stringOf(value) {
@@ -209,6 +215,10 @@ export function reportText(sighting, now = Date.now()) {
     ? `Ort: ${formatLat(sighting.lat)}, ${formatLon(sighting.lon)}`
     : 'Ort: keine Koordinaten');
   if (sighting.skyHint) lines.push(`Himmel: ${sighting.skyHint}`);
+  if (sighting.overhead?.length) {
+    lines.push('In der Nähe zur Stempelzeit, Sender oder Bahn, nicht das Urteil:');
+    lines.push(...sighting.overhead);
+  }
   if (sighting.weather && Number.isFinite(Number(sighting.weather.cloud_cover))) {
     const drift = windDrift(sighting.weather);
     const base = `Wetter: Wolken ${Math.round(sighting.weather.cloud_cover)} %, ${Math.round(sighting.weather.temperature_2m)} °C`;

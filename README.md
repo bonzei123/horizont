@@ -42,6 +42,7 @@ GPS funktioniert auf GitHub Pages, weil die Seite über HTTPS ausgeliefert wird.
 - Wolken, Sicht und Wind, wenn Open-Meteo erreichbar ist, inklusive der Richtung, in die ein Ballon zieht
 - 20 Minuten Dunkeladaption, unabhängig von einer Sitzung
 - Aktuelle ISS-Lage, wenn `wheretheiss.at` erreichbar ist
+- Flugzeuge in etwa 90 km über ADS-B, und die hellere Satellitengruppe von Celestrak, beide zur Stempelzeit in der Meldung
 - Kompass, falls das Gerät einen hat
 - Sichtung stempeln: Zeitpunkt und Ort sofort, Beschreibung danach, weitere Punkte auf derselben Meldung
 - Bericht zum Kopieren mit UTC, Ende der Sichtung, Zeugen, eigener Bewegung, Geruch, Umgebung und Schallverzögerung
@@ -53,7 +54,7 @@ GPS funktioniert auf GitHub Pages, weil die Seite über HTTPS ausgeliefert wird.
 - Nächster ISS-Pass und Wolken bis zur astronomischen Nacht
 - Leerer Himmel als Ergebnis einer Sitzung
 - Richtungspfeil auf der eigenen Karte
-- Prüfung auf Flugzeug, Satellit, Starlink und helle Planeten
+- Helle Körper am Himmel, dazu Flugzeuge per ADS-B und die Celestrak-Gruppe visual, beides als Kandidat in der Meldung
 - CE5-Sitzung in fünf Phasen, etwa 35 Minuten, mit ruhiger Stimme, die weiterführt, Pause und eigenem Stempel
 - Ruheton in Phase zwei und drei, Ausgabe wählbar, soweit der Browser das kann
 - Optionaler Dog Whistle, zu Beginn aus, nur in Phase zwei und drei
@@ -62,6 +63,8 @@ GPS funktioniert auf GitHub Pages, weil die Seite über HTTPS ausgeliefert wird.
 - Export und Import als JSON
 
 Der Almanach holt beim Bauen die Feeds nach `public/news.json`: die Woche und die neuesten Beiträge aus r/UFOs, r/aliens, r/HighStrangeness, r/UAP, r/UFOscience, r/ufo und r/Experiencers, dazu Presse zu UAP. Auf dem NAS liest „Neu laden“ die Subreddits zusätzlich live über den nginx-Proxy `/api/feed/`. GitHub Pages zeigt den Stand vom letzten Build. Die Beiträge bleiben fremde Links. Die App prüft sie nicht.
+
+Flugzeuge kommen live von `api.adsb.lol` über `/api/adsb/`. Die hellere Satellitengruppe kommt von Celestrak über `/api/tle/visual`, und wenn der Dienst nicht antwortet, aus `tle-visual.txt` vom letzten Build. Flugzeuge gibt es lokal und im NAS-Container. GitHub Pages hat keinen Proxy, dort bleibt die Flugzeugzeile leer. Die Zeile in der Meldung ist der Stand im Moment des Stempels. Ein Treffer in der Blickrichtung bleibt ein Kandidat.
 
 Fotos, Skizzen und Sprachmemos bleiben im Browser und kommen im JSON-Export nicht mit. Der kopierte Bericht ist der Text für eine Meldestelle oder ein Forum. Die App schickt ihn nicht selbst ab. Eine Meldung an die [GEP](https://www.uap-research.org/ufo-uap-meldestelle/) schickt die App nicht selbst ab. Der Link liegt in der Meldung.
 

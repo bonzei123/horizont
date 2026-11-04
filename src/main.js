@@ -28,6 +28,7 @@ import {
 } from './format.js';
 import { destroyMap, mountMap, placeYou } from './map.js';
 import {
+  paintMovingSky,
   renderCe5,
   renderFeld,
   renderLog,
@@ -41,6 +42,7 @@ import { createId } from './id.js';
 import { PHASES, createSession, phaseDue, phaseRemainingMs } from './protocol.js';
 import { createSighting, parseBackup, toBackup } from './sighting.js';
 import { cloudSpan, issSummary, issView, nextIssPass, skyHint, skySnapshot, weatherSummary } from './sky.js';
+import { overheadLines, parse3le, visibleCraft, visibleSats } from './traffic.js';
 import * as db from './store.js';
 
 const NIGHTS = ['amber', 'red', 'day'];
@@ -69,6 +71,12 @@ const state = {
   iss: null,
   issView: null,
   issPass: undefined,
+  craft: null,
+  craftError: false,
+  sats: null,
+  satsError: false,
+  satsStale: false,
+  tleRecords: [],
   cloudLine: '',
   recordingId: '',
   route: parseRoute(),
@@ -520,7 +528,82 @@ async function refreshContext() {
     state.issView = issView(pos.lat, pos.lon, state.iss);
   }
   void refreshPass(pos);
+  void refreshCraft(pos);
+  void refreshSats(pos);
   updateLive();
+}
+
+let craftAt = 0;
+let satsAt = 0;
+let tleHold = { text: '', stale: false, triedAt: 0 };
+const TLE_KEY = 'horizont.tle';
+
+function cachedTle() {
+  try {
+    const cached = JSON.parse(localStorage.getItem(TLE_KEY) || 'null');
+    if (cached?.text && cached.text.includes('\n1 ') && Date.now() - Number(cached.at) < 12 * 60 * 60 * 1000) {
+      return cached.text;
+    }
+  } catch {
+    localStorage.removeItem(TLE_KEY);
+  }
+  return '';
+}
+
+async function ensureTle() {
+  const cached = cachedTle();
+  if (cached) return { text: cached, stale: false };
+  const wait = tleHold.stale ? 10 * 60 * 1000 : 0;
+  if (tleHold.text && Date.now() - tleHold.triedAt < wait) return tleHold;
+  tleHold = { ...tleHold, triedAt: Date.now() };
+  try {
+    const response = await fetch('/api/tle/visual', { signal: AbortSignal.timeout(12000) });
+    if (!response.ok) throw new Error('tle');
+    const text = await response.text();
+    if (!text.includes('\n1 ')) throw new Error('tle');
+    localStorage.setItem(TLE_KEY, JSON.stringify({ at: Date.now(), text }));
+    tleHold = { text, stale: false, triedAt: Date.now() };
+    return tleHold;
+  } catch {
+    const response = await fetch('tle-visual.txt', { signal: AbortSignal.timeout(8000) });
+    if (!response.ok) throw new Error('tle-file');
+    const text = await response.text();
+    if (!text.includes('\n1 ')) throw new Error('tle-file');
+    tleHold = { text, stale: true, triedAt: Date.now() };
+    return tleHold;
+  }
+}
+
+async function refreshCraft(pos) {
+  if (Date.now() - craftAt < 25000) return;
+  craftAt = Date.now();
+  try {
+    const response = await fetch(`/api/adsb/v2/lat/${pos.lat.toFixed(2)}/lon/${pos.lon.toFixed(2)}/dist/50`, {
+      signal: AbortSignal.timeout(12000),
+    });
+    if (!response.ok) throw new Error('adsb');
+    const data = await response.json();
+    state.craft = visibleCraft(pos, data.ac);
+    state.craftError = false;
+  } catch {
+    if (!state.craft) state.craftError = true;
+  }
+  paintMovingSky(state);
+}
+
+async function refreshSats(pos) {
+  if (Date.now() - satsAt < 60000 && state.sats) return;
+  satsAt = Date.now();
+  try {
+    const pack = await ensureTle();
+    state.tleRecords = parse3le(pack.text);
+    state.sats = visibleSats(pos, state.tleRecords, new Date());
+    state.satsStale = pack.stale;
+    state.satsError = false;
+  } catch {
+    if (!state.sats) state.satsError = true;
+  }
+  paintMovingSky(state);
 }
 
 async function refreshPass(pos) {
@@ -617,6 +700,7 @@ async function stamp(sessionId = null) {
     heading: state.heading,
     skyHint: skyHint(state.sky),
     weather: state.weather,
+    overhead: overheadLines(state.craft, state.sats, state.heading),
     sessionId,
     kind: sessionId ? 'ce5' : 'unklar',
   });

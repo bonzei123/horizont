@@ -171,6 +171,10 @@ p { margin: 0; }
 .sky-row:first-of-type { border-top: 0; }
 .sky-row span:first-child { color: var(--cyan); }
 .sky-row span:last-child { color: var(--muted); }
+.move-row { display: grid; gap: 2px; padding: 8px 0; border-top: 1px solid var(--line); }
+.move-row:first-child { border-top: 0; padding-top: 0; }
+.move-row span:first-child { color: var(--cyan); font-weight: 650; }
+.move-row span:last-child { color: var(--muted); }
 
 .row-actions, .chips, .big-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .btn {
