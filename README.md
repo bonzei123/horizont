@@ -34,7 +34,7 @@ GPS funktioniert auf GitHub Pages, weil die Seite über HTTPS ausgeliefert wird.
 ## Was drin ist
 
 - Lage für heute Nacht: ob sich der Weg lohnt, Mond, Wolken, Kälte, Sternschnuppen, naher ISS-Pass
-- Handbuch: was du tust, wenn du etwas siehst, wer zuständig ist, Packliste, Recht und Gerät
+- Handbuch: Begriffe, Gestalten aus der Literatur, Entführungsberichte, eine Chronik der oft genannten Fälle, dazu Einsatz, Zuständigkeit, Packliste und Gerät
 - Laufende GPS-Koordinaten, Genauigkeit und Kopieren
 - Himmel an diesem Ort: Sonne, Dämmerung, Mondphase, helle Planeten und helle Sterne zum Vergleich, dazu der Polarstern
 - Laufende Sternschnuppenströme und ein Link für Feuerkugeln an den Arbeitskreis Meteore

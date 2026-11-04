@@ -1,4 +1,5 @@
 import { fieldBriefing, PACK } from './briefing.js';
+import { CHAPTERS } from './reference.js';
 import { h } from './dom.js';
 import {
   compassNote,
@@ -102,6 +103,27 @@ function packFold(ctx) {
   return h('details', { class: 'panel fold' },
     h('summary', {}, 'Bevor du losgehst'),
     packList(ctx),
+  );
+}
+
+function referenceBlock() {
+  return h('div', { class: 'stack' },
+    h('div', { class: 'row-actions' }, ...CHAPTERS.map((chapter) => h('button', {
+      class: 'btn btn-ghost',
+      type: 'button',
+      onClick: () => document.getElementById(chapter.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+    }, chapter.label))),
+    ...CHAPTERS.map(renderChapter),
+  );
+}
+
+function renderChapter(chapter) {
+  return h('section', { class: 'stack', id: chapter.id },
+    h('h2', {}, chapter.title),
+    chapter.intro ? h('p', {}, chapter.intro) : null,
+    ...(chapter.paragraphs || []).map((text) => h('p', {}, text)),
+    chapter.entries ? h('div', {}, ...chapter.entries.map(([name, text]) => h('p', { class: 'ref-entry' }, h('strong', {}, name), text))) : null,
+    chapter.items ? h('ul', {}, ...chapter.items.map((text) => h('li', {}, text))) : null,
   );
 }
 
@@ -954,7 +976,8 @@ export function renderWissen(ctx) {
   return h('section', { class: 'screen prose-page' },
     h('p', { class: 'kicker' }, 'Handbuch'),
     h('h1', {}, 'Der Begleiter für die Nacht.'),
-    h('p', {}, 'Horizont ist die Lage vor dem Rausgehen, die Packliste, die Zuständigkeit und erst danach das Protokoll. UAP heißt unidentified anomalous phenomenon: etwas am Himmel, das du im Moment nicht zuordnen kannst. UFO meint dasselbe und trägt mehr Mythos mit. Beides bleibt eine Beobachtung.'),
+    h('p', {}, 'Horizont ist das Nachschlagen und die Lage draußen. UAP heißt unidentified anomalous phenomenon: etwas am Himmel, das du im Moment nicht zuordnen kannst. UFO meint dasselbe und trägt mehr Mythos mit. Beides bleibt eine Beobachtung.'),
+    referenceBlock(),
     h('h2', {}, 'Wenn du etwas siehst'),
     h('ol', {},
       h('li', {}, 'Stehen bleiben. Im Auto erst an den Rand, dann nach oben.'),

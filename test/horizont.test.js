@@ -28,6 +28,7 @@ import {
   toBackup,
 } from '../src/sighting.js';
 import { fieldBriefing } from '../src/briefing.js';
+import { CHAPTERS } from '../src/reference.js';
 import { cloudSpan, moonIllumination, moonPhaseName, nextIssPass, showerWatch, skySnapshot, sunBand, windDrift } from '../src/sky.js';
 
 test('coordinates and compass points', () => {
@@ -118,6 +119,17 @@ test('the night briefing says whether to go out', () => {
   });
   assert.equal(moonlit.title, 'Nacht mit hellem Mond');
   assert.equal(fieldBriefing({ now: Date.parse('2026-11-04T22:00:00Z') }).title, 'Ohne Ort kein Lagebild');
+});
+
+test('the handbook covers the literature without a personal questionnaire', () => {
+  const titles = CHAPTERS.map((chapter) => chapter.title).join(' ');
+  assert.match(titles, /Gestalten/);
+  assert.match(titles, /Entführungsberichte/);
+  const text = JSON.stringify(CHAPTERS);
+  assert.match(text, /Kenneth Arnold/);
+  assert.match(text, /Greifswald/);
+  assert.match(text, /Petit-Rechain/);
+  assert.match(text, /keinen Entführungsbogen/);
 });
 
 test('meteor showers and wind drift stay local', () => {
