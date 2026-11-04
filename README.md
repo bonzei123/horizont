@@ -34,6 +34,7 @@ GPS funktioniert auf GitHub Pages, weil die Seite über HTTPS ausgeliefert wird.
 ## Was drin ist
 
 - Lage für heute Nacht: ob sich der Weg lohnt, Mond, Wolken, Kälte, Sternschnuppen, naher ISS-Pass
+- Almanach: Top der Woche und Neueste aus den großen UAP-Subreddits, Presse, dazu Tage, Wellen, Stellen, Regal und Sensoren
 - Handbuch: Begriffe, Gestalten aus der Literatur, Entführungsberichte, eine Chronik der oft genannten Fälle, dazu Einsatz, Zuständigkeit, Packliste und Gerät
 - Laufende GPS-Koordinaten, Genauigkeit und Kopieren
 - Himmel an diesem Ort: Sonne, Dämmerung, Mondphase, helle Planeten und helle Sterne zum Vergleich, dazu der Polarstern
@@ -59,6 +60,8 @@ GPS funktioniert auf GitHub Pages, weil die Seite über HTTPS ausgeliefert wird.
 - Rotlicht für die Nachtsehschärfe, dazu Nacht- und Tagdarstellung
 - Karte der eigenen Punkte
 - Export und Import als JSON
+
+Der Almanach holt beim Bauen die Feeds nach `public/news.json`: die Woche und die neuesten Beiträge aus r/UFOs, r/aliens, r/HighStrangeness, r/UAP, r/UFOscience, r/ufo und r/Experiencers, dazu Presse zu UAP. Auf dem NAS liest „Neu laden“ die Subreddits zusätzlich live über den nginx-Proxy `/api/feed/`. GitHub Pages zeigt den Stand vom letzten Build. Die Beiträge bleiben fremde Links. Die App prüft sie nicht.
 
 Fotos, Skizzen und Sprachmemos bleiben im Browser und kommen im JSON-Export nicht mit. Der kopierte Bericht ist der Text für eine Meldestelle oder ein Forum. Die App schickt ihn nicht selbst ab. Eine Meldung an die [GEP](https://www.uap-research.org/ufo-uap-meldestelle/) schickt die App nicht selbst ab. Der Link liegt in der Meldung.
 

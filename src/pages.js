@@ -1,3 +1,4 @@
+import { newsTeaser } from './almanac-view.js';
 import { fieldBriefing, PACK } from './briefing.js';
 import { CHAPTERS } from './reference.js';
 import { h } from './dom.js';
@@ -57,6 +58,7 @@ export function renderFeld(ctx) {
     h('p', { class: 'kicker' }, 'Feld'),
     h('h1', {}, 'Was über dir steht, und wo du stehst.'),
     lageBlock(ctx),
+    newsTeaser(ctx.state.news),
     statusBlock(ctx),
     pos ? coordBlock(ctx, pos) : h('div', { class: 'panel empty-panel' },
       h('h2', {}, ctx.state.geoStatus === 'insecure' ? 'Standort braucht HTTPS' : 'Noch kein Ort'),

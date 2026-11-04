@@ -114,6 +114,19 @@ export function formatClock(ts) {
   }).format(new Date(ts));
 }
 
+export function formatAgo(ts, now = Date.now()) {
+  if (!Number.isFinite(ts)) return '';
+  const minutes = Math.round((now - ts) / 60000);
+  if (minutes < 1) return 'gerade eben';
+  if (minutes < 60) return minutes === 1 ? 'vor einer Minute' : `vor ${minutes} Minuten`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return hours === 1 ? 'vor einer Stunde' : `vor ${hours} Stunden`;
+  const days = Math.round(hours / 24);
+  if (days === 1) return 'gestern';
+  if (days < 14) return `vor ${days} Tagen`;
+  return new Intl.DateTimeFormat('de-DE', { day: 'numeric', month: 'short' }).format(new Date(ts));
+}
+
 export function formatDuration(totalSeconds) {
   const seconds = Math.max(0, Math.round(totalSeconds));
   const minutes = Math.floor(seconds / 60);

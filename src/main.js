@@ -14,6 +14,7 @@ import {
   stopGuide,
   unlockGuide,
 } from './audio.js';
+import { paintNews, renderAlmanach } from './almanac-view.js';
 import { fieldBriefing } from './briefing.js';
 import { h } from './dom.js';
 import {
@@ -35,6 +36,7 @@ import {
   renderSession,
   renderWissen,
 } from './pages.js';
+import { parseFeed, redditPath } from './feeds.js';
 import { createId } from './id.js';
 import { PHASES, createSession, phaseDue, phaseRemainingMs } from './protocol.js';
 import { createSighting, parseBackup, toBackup } from './sighting.js';
@@ -49,6 +51,7 @@ const NAV = [
   ['#/ce5', 'CE5', 'ce5'],
   ['#/log', 'Logbuch', 'log'],
   ['#/karte', 'Karte', 'karte'],
+  ['#/almanach', 'Almanach', 'almanach'],
   ['#/wissen', 'Handbuch', 'wissen'],
 ];
 
@@ -71,6 +74,9 @@ const state = {
   route: parseRoute(),
   clock: Date.now(),
   guideStatus: '',
+  news: { status: 'idle', week: [], fresh: [], press: [], fetchedAt: null, live: false },
+  newsView: 'week',
+  newsSub: 'alle',
 };
 
 let geoWatch = 0;
@@ -119,6 +125,8 @@ const ctx = {
   startEyes,
   stopEyes,
   togglePack,
+  setNewsView,
+  reloadNews,
   mountMap: (frame) => mountMap(frame, {
     position: activePosition(),
     sightings: state.sightings,
@@ -135,6 +143,7 @@ function parseRoute() {
   if (head === 'log') return { name: 'log' };
   if (head === 'karte') return { name: 'karte' };
   if (head === 'wissen') return { name: 'wissen' };
+  if (head === 'almanach') return { name: 'almanach' };
   return { name: 'feld' };
 }
 
@@ -273,6 +282,7 @@ function render() {
     log: 'Logbuch — Horizont',
     karte: 'Karte — Horizont',
     wissen: 'Handbuch — Horizont',
+    almanach: 'Almanach — Horizont',
   };
   document.title = titles[state.route.name] || 'Horizont';
   let page;
@@ -282,6 +292,7 @@ function render() {
   else if (state.route.name === 'log') page = renderLog(ctx);
   else if (state.route.name === 'karte') page = renderMapPage(ctx);
   else if (state.route.name === 'wissen') page = renderWissen(ctx);
+  else if (state.route.name === 'almanach') page = renderAlmanach(ctx);
   else page = renderFeld(ctx);
   main.replaceChildren(page);
   setNav();
@@ -992,6 +1003,79 @@ function onHashChange() {
   render();
 }
 
+function setNewsView(id) {
+  state.newsView = id;
+  state.newsSub = 'alle';
+  paintNews(state);
+}
+
+async function reloadNews() {
+  sessionStorage.removeItem('horizont.news.live');
+  state.news = { ...state.news, status: 'loading' };
+  paintNews(state);
+  const live = await pullLive();
+  if (live) state.news = { ...state.news, ...live, press: state.news.press, status: 'ready', live: true };
+  else state.news = { ...state.news, status: 'ready' };
+  paintNews(state);
+}
+
+async function loadNews() {
+  try {
+    const response = await fetch(new URL('news.json', document.baseURI));
+    if (response.ok) {
+      const data = await response.json();
+      state.news = { ...state.news, ...data, status: 'ready', live: false };
+    } else state.news = { ...state.news, status: 'ready' };
+    paintNews(state);
+  } catch {
+    state.news = { ...state.news, status: 'ready' };
+    paintNews(state);
+  }
+  const live = await pullLive();
+  if (!live?.week?.length) return;
+  state.news = {
+    ...state.news,
+    ...live,
+    press: state.news.press?.length ? state.news.press : live.press || [],
+    status: 'ready',
+    live: true,
+  };
+  paintNews(state);
+}
+
+async function pullLive() {
+  try {
+    const cached = JSON.parse(sessionStorage.getItem('horizont.news.live') || 'null');
+    if (cached?.week?.length && Date.now() - Date.parse(cached.fetchedAt) < 20 * 60 * 1000) return cached;
+  } catch {
+    sessionStorage.removeItem('horizont.news.live');
+  }
+  try {
+    const week = parseFeed(await feedText(redditPath('week')), { kind: 'reddit' });
+    if (!week.length) return null;
+    let fresh = [];
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+      fresh = parseFeed(await feedText(redditPath('fresh')), { kind: 'reddit' });
+    } catch {
+      fresh = state.news.fresh || [];
+    }
+    const data = { fetchedAt: new Date().toISOString(), week, fresh, press: state.news.press || [] };
+    sessionStorage.setItem('horizont.news.live', JSON.stringify(data));
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+async function feedText(feedPath) {
+  const response = await fetch(`/api/feed${feedPath}`, { signal: AbortSignal.timeout(8000) });
+  if (!response.ok) throw new Error(String(response.status));
+  const text = await response.text();
+  if (!text.includes('<entry') && !text.includes('<item')) throw new Error('kein Feed');
+  return text;
+}
+
 async function boot() {
   buildShell();
   try {
@@ -1016,9 +1100,11 @@ async function boot() {
   else startGeo();
   if (state.route.name === 'melden' && !state.route.id) {
     await stampAndOpen(openSession()?.id || null);
+    void loadNews();
     return;
   }
   render();
+  void loadNews();
 }
 
 boot();

@@ -27,7 +27,9 @@ import {
   reportText,
   toBackup,
 } from '../src/sighting.js';
+import { editionLabel, onThisDay } from '../src/almanac.js';
 import { fieldBriefing } from '../src/briefing.js';
+import { parseFeed, selectPosts } from '../src/feeds.js';
 import { CHAPTERS } from '../src/reference.js';
 import { cloudSpan, moonIllumination, moonPhaseName, nextIssPass, showerWatch, skySnapshot, sunBand, windDrift } from '../src/sky.js';
 
@@ -119,6 +121,20 @@ test('the night briefing says whether to go out', () => {
   });
   assert.equal(moonlit.title, 'Nacht mit hellem Mond');
   assert.equal(fieldBriefing({ now: Date.parse('2026-11-04T22:00:00Z') }).title, 'Ohne Ort kein Lagebild');
+});
+
+test('the almanac knows Arnold day and a reddit feed parses', () => {
+  const arnold = onThisDay(new Date(2026, 5, 24));
+  assert.ok(arnold.some((item) => item.title === 'Kenneth Arnold'));
+  const greifswald = onThisDay(new Date(2026, 7, 24));
+  assert.ok(greifswald.some((item) => item.title === 'Greifswald'));
+  assert.match(editionLabel(new Date(2026, 10, 4)), /2026/);
+  const posts = parseFeed(`<feed><entry><title>Licht über der Werft</title><link href="https://www.reddit.com/r/UFOs/comments/abc/licht/"/><category term="UFOs"/><published>2026-11-04T08:00:00Z</published></entry></feed>`, { kind: 'reddit' });
+  assert.equal(posts[0].source, 'r/UFOs');
+  assert.equal(posts[0].title, 'Licht über der Werft');
+  const bundle = { week: posts, fresh: [], press: [{ title: 'Amt', href: 'https://example.test/a', source: 'Google News', kind: 'press', at: null, thumb: '' }] };
+  assert.equal(selectPosts(bundle, 'week', 'r/UFOs').length, 1);
+  assert.equal(selectPosts(bundle, 'press', 'alle')[0].source, 'Google News');
 });
 
 test('the handbook covers the literature without a personal questionnaire', () => {
