@@ -1,5 +1,6 @@
 import {
   Body,
+  DefineStar,
   Equator,
   Horizon,
   Illumination,
@@ -7,7 +8,38 @@ import {
   Observer,
   SearchAltitude,
 } from 'astronomy-engine';
-import { angleDiff, bearingDeg, formatAltitude, formatAzimuth, formatClock, formatMag, satelliteElevationDeg } from './format.js';
+import { angleDiff, bearingDeg, compassPoint, formatAltitude, formatAzimuth, formatClock, formatMag, satelliteElevationDeg } from './format.js';
+
+const STARS = [
+  [Body.Star1, 'Sirius', 6.7525, -16.716, 8.6, -1.46],
+  [Body.Star2, 'Arktur', 14.261, 19.182, 37, -0.05],
+  [Body.Star3, 'Wega', 18.616, 38.784, 25, 0.03],
+  [Body.Star4, 'Capella', 5.278, 45.998, 43, 0.08],
+  [Body.Star5, 'Prokyon', 7.655, 5.225, 11.5, 0.37],
+  [Body.Star6, 'Atair', 19.846, 8.868, 17, 0.76],
+  [Body.Star7, 'Beteigeuze', 5.9195, 7.407, 550, 0.5],
+  [Body.Star8, 'Polarstern', 2.530, 89.264, 433, 1.98],
+];
+
+let starsReady = false;
+
+function ensureStars() {
+  if (starsReady) return;
+  for (const [body, , ra, dec, lightYears] of STARS) DefineStar(body, ra, dec, lightYears);
+  starsReady = true;
+}
+
+const SHOWERS = [
+  { name: 'Quadrantiden', start: '01-01', end: '01-12', peak: '01-03', radiant: 'Bärenhüter, nach Mitternacht im Nordosten' },
+  { name: 'Lyriden', start: '04-14', end: '04-30', peak: '04-22', radiant: 'Leier, Osten' },
+  { name: 'Eta-Aquariiden', start: '04-19', end: '05-28', peak: '05-06', radiant: 'Wassermann, tief im Südosten' },
+  { name: 'Delta-Aquariiden', start: '07-12', end: '08-23', peak: '07-30', radiant: 'Wassermann, Südosten' },
+  { name: 'Perseiden', start: '07-17', end: '08-24', peak: '08-12', radiant: 'Perseus, Nordosten' },
+  { name: 'Orioniden', start: '10-02', end: '11-07', peak: '10-21', radiant: 'Orion, Südosten' },
+  { name: 'Leoniden', start: '11-06', end: '11-30', peak: '11-17', radiant: 'Löwe, Osten nach Mitternacht' },
+  { name: 'Geminiden', start: '12-04', end: '12-17', peak: '12-14', radiant: 'Zwillinge, Osten' },
+  { name: 'Ursiden', start: '12-17', end: '12-26', peak: '12-22', radiant: 'Kleiner Wagen, Norden' },
+];
 
 const PLANETS = [
   [Body.Mercury, 'Merkur'],
@@ -51,6 +83,12 @@ export function skySnapshot(lat, lon, heightMeters = 0, date = new Date()) {
   const sun = horizontal(Body.Sun, date, observer);
   const moon = horizontal(Body.Moon, date, observer);
   const phase = MoonPhase(date);
+  ensureStars();
+  const stars = STARS.map(([body, name, , , , mag]) => {
+    const hor = horizontal(body, date, observer);
+    return { name, azimuth: hor.azimuth, altitude: hor.altitude, mag };
+  }).filter((star) => star.altitude > 8).sort((a, b) => a.mag - b.mag);
+
   const planets = PLANETS.map(([body, name]) => {
     const hor = horizontal(body, date, observer);
     const illum = Illumination(body, date);
@@ -86,6 +124,7 @@ export function skySnapshot(lat, lon, heightMeters = 0, date = new Date()) {
       illumination: moonIllumination(phase),
     },
     planets,
+    stars,
     astronomicalNightAt,
   };
 }
@@ -95,6 +134,7 @@ export function nearbyBrightBodies(sky, direction, windowDeg = 18) {
   const bodies = [
     sky.moon.altitude > 5 ? { ...sky.moon, name: 'Mond', mag: -12 } : null,
     ...sky.planets,
+    ...(sky.stars || []),
   ].filter(Boolean);
   return bodies.filter((body) => body.mag < 1 && angleDiff(body.azimuth, direction) <= windowDeg);
 }
@@ -185,11 +225,54 @@ export function issView(lat, lon, iss) {
   };
 }
 
+export function windDrift(weather) {
+  const from = Number(weather?.wind_direction_10m);
+  const speed = Number(weather?.wind_speed_10m);
+  if (!Number.isFinite(from) || !Number.isFinite(speed)) return '';
+  const toward = (from + 180) % 360;
+  return `Wind ${Math.round(speed)} km/h aus ${formatAzimuth(from)}. Ein Ballon oder eine Himmelslaterne zieht etwa nach ${compassPoint(toward)}.`;
+}
+
 export function weatherSummary(weather, cloudLine = '') {
   if (!weather) return '';
   const vis = Number.isFinite(weather.visibility) ? `${Math.round(weather.visibility / 1000)} km Sicht` : 'Sicht unbekannt';
-  const now = `Wolken ${Math.round(weather.cloud_cover)} % · ${vis} · ${Math.round(weather.temperature_2m)} °C · Wind ${Math.round(weather.wind_speed_10m)} km/h`;
-  return cloudLine ? `${now}. ${cloudLine}` : now;
+  const wind = windDrift(weather) || `Wind ${Math.round(weather.wind_speed_10m)} km/h`;
+  const now = `Wolken ${Math.round(weather.cloud_cover)} % · ${vis} · ${Math.round(weather.temperature_2m)} °C · ${wind}`;
+  return cloudLine ? `${now} ${cloudLine}` : now;
+}
+
+function monthDay(date) {
+  return (date.getMonth() + 1) * 100 + date.getDate();
+}
+
+function keyOf(mmdd) {
+  const [month, day] = mmdd.split('-').map(Number);
+  return month * 100 + day;
+}
+
+function prettyDay(mmdd) {
+  const months = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+  const [month, day] = mmdd.split('-').map(Number);
+  return `${day}. ${months[month - 1]}`;
+}
+
+export function showerWatch(date = new Date()) {
+  const key = monthDay(date);
+  const active = SHOWERS.filter((shower) => key >= keyOf(shower.start) && key <= keyOf(shower.end));
+  const upcoming = SHOWERS.filter((shower) => keyOf(shower.start) > key);
+  return { active, next: upcoming[0] || SHOWERS[0] };
+}
+
+export function showerLine(date = new Date()) {
+  const watch = showerWatch(date);
+  if (watch.active.length) {
+    const detail = watch.active
+      .map((shower) => `${shower.name}, Radiant ${shower.radiant}, Höhepunkt um den ${prettyDay(shower.peak)}`)
+      .join('. ');
+    return `${detail}. Eine Sternschnuppe dauert unter einer Sekunde und kommt aus dieser Himmelsgegend. Ein Licht, das minutenlang steht, ist ein anderer Vorgang.`;
+  }
+  const next = watch.next;
+  return `Gerade kein großer Strom. Als Nächstes ${next.name} ab dem ${prettyDay(next.start)}. Radiant: ${next.radiant}.`;
 }
 
 export function issSummary(view, pass) {

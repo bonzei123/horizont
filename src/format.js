@@ -27,6 +27,34 @@ export function formatAccuracy(meters) {
   return `± ${(meters / 1000).toFixed(1)} km`;
 }
 
+export function compassNote(heading, absolute) {
+  const magnetic = ' Der Kompass ist magnetisch. In Mitteleuropa weicht er um wenige Grad von geografisch Nord ab.';
+  if (!Number.isFinite(heading)) return `Viele Laptops haben keinen Kompass. Auf dem Telefon fragt das System nach.${magnetic}`;
+  if (!absolute) return `Ungefähre Richtung. Das Gerät liefert keinen absoluten Kompass.${magnetic}`;
+  return `Gerätekompass, ${compassPoint(heading)}.${magnetic}`;
+}
+
+export function durationPhrase(ms) {
+  const seconds = Math.max(0, Math.round(ms / 1000));
+  if (seconds < 60) return seconds === 1 ? '1 Sekunde' : `${seconds} Sekunden`;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return minutes === 1 ? '1 Minute' : `${minutes} Minuten`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  const hourLabel = hours === 1 ? '1 Stunde' : `${hours} Stunden`;
+  if (!rest) return hourLabel;
+  return `${hourLabel} ${rest} Minuten`;
+}
+
+export const EYES_MS = 20 * 60 * 1000;
+
+export function eyesLine(startedAt, now = Date.now()) {
+  if (!startedAt) return 'Volle Anpassung dauert ungefähr 20 Minuten. Weißes Licht setzt sie zurück. Das Rotlicht der App lässt sie eher in Ruhe.';
+  const left = startedAt + EYES_MS - now;
+  if (left <= 0) return 'Die 20 Minuten sind um. Weißes Licht setzt die Anpassung zurück.';
+  return `Noch ${formatDuration(left / 1000)}. Weißes Licht setzt die Anpassung zurück.`;
+}
+
 export function compassPoint(azimuth) {
   if (!Number.isFinite(azimuth)) return '—';
   const names = ['N', 'NNO', 'NO', 'ONO', 'O', 'OSO', 'SO', 'SSO', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];

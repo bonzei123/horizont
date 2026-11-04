@@ -16,6 +16,8 @@ import {
 } from './audio.js';
 import { h } from './dom.js';
 import {
+  compassNote,
+  eyesLine,
   formatAccuracy,
   formatAzimuth,
   formatDuration,
@@ -112,6 +114,9 @@ const ctx = {
   exportAll,
   pickImport,
   enableCompass,
+  eyesStarted,
+  startEyes,
+  stopEyes,
   mountMap: (frame) => mountMap(frame, {
     position: activePosition(),
     sightings: state.sightings,
@@ -326,12 +331,13 @@ function updateLive() {
   const heading = document.querySelector('[data-live="heading"]');
   if (heading) heading.textContent = formatAzimuth(state.heading);
   const headingNote = document.querySelector('[data-live="heading-note"]');
-  if (headingNote) {
-    headingNote.textContent = !Number.isFinite(state.heading)
-      ? 'Viele Laptops haben keinen Kompass. Auf dem Telefon fragt das System nach.'
-      : state.headingAbsolute
-        ? 'Gerätekompass.'
-        : 'Ungefähre Richtung. Das Gerät liefert keinen absoluten Kompass.';
+  if (headingNote) headingNote.textContent = compassNote(state.heading, state.headingAbsolute);
+  const eyes = document.querySelector('[data-live="eyes"]');
+  if (eyes) eyes.textContent = eyesLine(eyesStarted(), state.clock);
+  const watch = document.querySelector('[data-live="watch"]');
+  if (watch && state.route.name === 'melden') {
+    const sighting = state.sightings.find((item) => item.id === state.route.id);
+    if (sighting) watch.textContent = `Seit dem Stempel ${formatDuration(Math.max(0, (state.clock - sighting.observedAt) / 1000))}.`;
   }
   const weather = document.querySelector('[data-live="weather"]');
   if (weather) weather.textContent = weatherText();
@@ -451,7 +457,7 @@ async function refreshContext() {
       const url = new URL('https://api.open-meteo.com/v1/forecast');
       url.searchParams.set('latitude', pos.lat.toFixed(4));
       url.searchParams.set('longitude', pos.lon.toFixed(4));
-      url.searchParams.set('current', 'temperature_2m,cloud_cover,visibility,wind_speed_10m');
+      url.searchParams.set('current', 'temperature_2m,cloud_cover,visibility,wind_speed_10m,wind_direction_10m');
       url.searchParams.set('hourly', 'cloud_cover');
       url.searchParams.set('forecast_hours', '12');
       url.searchParams.set('timezone', 'auto');
@@ -508,6 +514,23 @@ async function refreshPass(pos) {
   } catch {
     if (state.issPass === undefined) state.issPass = null;
   }
+}
+
+const EYES_KEY = 'horizont.eyes';
+
+function eyesStarted() {
+  const value = Number(localStorage.getItem(EYES_KEY));
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+function startEyes() {
+  localStorage.setItem(EYES_KEY, String(Date.now()));
+  render();
+}
+
+function stopEyes() {
+  localStorage.removeItem(EYES_KEY);
+  render();
 }
 
 async function enableCompass() {

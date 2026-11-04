@@ -1,7 +1,9 @@
 import { h } from './dom.js';
 import {
-  compassPoint,
+  compassNote,
   decimalPair,
+  durationPhrase,
+  eyesLine,
   formatAccuracy,
   formatAltitude,
   formatAzimuth,
@@ -29,11 +31,13 @@ import {
   SOUNDS,
   STANCES,
   angleRate,
+  bookSummary,
   confusionNotes,
   labelOf,
+  reportGaps,
   reportText,
 } from './sighting.js';
-import { describeBody, issSummary, nearbyBrightBodies, weatherSummary } from './sky.js';
+import { describeBody, issSummary, nearbyBrightBodies, showerLine, weatherSummary } from './sky.js';
 
 function field(label, control) {
   return h('label', { class: 'field' }, h('span', { class: 'field-label' }, label), control);
@@ -63,8 +67,10 @@ export function renderFeld(ctx) {
     manualBlock(ctx),
     placesBlock(ctx),
     sky ? skyBlock(ctx, sky) : h('p', { class: 'hint' }, 'Der Himmel wird berechnet, sobald ein Ort da ist.'),
+    showerBlock(),
     weatherBlock(ctx),
     issBlock(ctx),
+    eyesBlock(ctx),
     compassBlock(ctx),
     h('div', { class: 'big-actions' },
       h('button', { class: 'btn btn-primary btn-xl', type: 'button', onClick: () => ctx.stampAndOpen() }, 'Sichtung melden'),
@@ -151,6 +157,13 @@ function skyBlock(ctx, sky) {
   }
   for (const planet of sky.planets.slice(0, 4)) rows.push(skyRow(planet.name, describeBody(planet)));
   if (!sky.planets.length) rows.push(h('p', { class: 'hint' }, 'Keiner der hellen Planeten steht gerade über dem Horizont.'));
+  for (const star of (sky.stars || []).filter((item) => item.mag < 1.3).slice(0, 4)) {
+    rows.push(skyRow(star.name, describeBody(star)));
+  }
+  if (sky.stars?.some((star) => star.name === 'Polarstern')) {
+    const polaris = sky.stars.find((star) => star.name === 'Polarstern');
+    rows.push(h('p', { class: 'hint' }, `Polarstern steht bei ${formatAzimuth(polaris.azimuth)}, Höhe ${formatAltitude(polaris.altitude)}. Daran prüfst du den Kompass.`));
+  }
   return h('section', { class: 'panel', 'data-live': 'sky' },
     h('h2', {}, 'Himmel'),
     ...rows,
@@ -159,6 +172,30 @@ function skyBlock(ctx, sky) {
 
 function skyRow(name, text) {
   return h('p', { class: 'sky-row' }, h('span', {}, name), h('span', {}, text));
+}
+
+function showerBlock() {
+  return h('section', { class: 'panel' },
+    h('h2', {}, 'Sternschnuppen'),
+    h('p', {}, showerLine(new Date())),
+    h('div', { class: 'row-actions' },
+      h('a', { class: 'btn btn-ghost', href: 'https://www.meteoros.de/feuerkugel', target: '_blank', rel: 'noreferrer' }, 'Feuerkugel melden'),
+    ),
+    h('p', { class: 'hint' }, 'Eine helle Feuerkugel mit Knall nimmst du beim Arbeitskreis Meteore auf. Die GEP ist für das, was danach noch keine Sternschnuppe ist.'),
+  );
+}
+
+function eyesBlock(ctx) {
+  const started = ctx.eyesStarted();
+  return h('section', { class: 'panel' },
+    h('h2', {}, 'Augen an die Dunkelheit'),
+    h('p', { 'data-live': 'eyes' }, eyesLine(started, ctx.state.clock)),
+    h('div', { class: 'row-actions' },
+      started
+        ? h('button', { class: 'btn btn-ghost', type: 'button', onClick: ctx.stopEyes }, 'Zurücksetzen')
+        : h('button', { class: 'btn btn-primary', type: 'button', onClick: ctx.startEyes }, '20 Minuten starten'),
+    ),
+  );
 }
 
 function weatherBlock(ctx) {
@@ -189,9 +226,7 @@ function compassBlock(ctx) {
 }
 
 function headingNote(ctx) {
-  if (!Number.isFinite(ctx.state.heading)) return 'Viele Laptops haben keinen Kompass. Auf dem Telefon fragt das System nach.';
-  if (!ctx.state.headingAbsolute) return 'Ungefähre Richtung. Das Gerät liefert keinen absoluten Kompass.';
-  return `Gerätekompass, ${compassPoint(ctx.state.heading)}.`;
+  return compassNote(ctx.state.heading, ctx.state.headingAbsolute);
 }
 
 function placesBlock(ctx) {
@@ -253,15 +288,24 @@ export function renderReport(ctx, sighting) {
     sighting.updatedAt = Date.now();
     ctx.persistSighting(sighting);
   };
+  const gaps = h('p', { class: 'hint' });
+  const paintGaps = () => {
+    const missing = reportGaps(sighting);
+    gaps.textContent = missing.length
+      ? `Fürs Weitergeben fehlt noch: ${missing.join(', ')}.`
+      : 'Ort, Richtung, Höhe, Dauer, Ende, Helligkeit und Winkelgröße sind ausgefüllt.';
+  };
+  const kicker = h('p', { class: 'kicker' }, sighting.described ? 'Meldung' : 'Zeitpunkt gestempelt');
+  const markDescribed = () => { kicker.textContent = 'Meldung'; };
   const touch = () => {
     sighting.described = true;
     markDescribed();
     paintHints();
+    paintGaps();
     save();
   };
   paintHints();
-  const kicker = h('p', { class: 'kicker' }, sighting.described ? 'Meldung' : 'Zeitpunkt gestempelt');
-  const markDescribed = () => { kicker.textContent = 'Meldung'; };
+  paintGaps();
   return h('section', { class: 'screen' },
     kicker,
     h('h1', {}, formatWhen(sighting.observedAt, ctx.state.clock)),
@@ -273,7 +317,9 @@ export function renderReport(ctx, sighting) {
         ? h('button', { class: 'btn btn-ghost', type: 'button', onClick: () => ctx.copyText(decimalPair(sighting.lat, sighting.lon)) }, 'Koordinaten kopieren')
         : null,
       h('a', { class: 'btn btn-ghost', href: 'https://www.uap-research.org/ufo-uap-meldestelle/', target: '_blank', rel: 'noreferrer' }, 'GEP-Meldestelle'),
+      h('a', { class: 'btn btn-ghost', href: 'https://www.meteoros.de/feuerkugel', target: '_blank', rel: 'noreferrer' }, 'Feuerkugel'),
     ),
+    gaps,
     h('form', { class: 'stack', onSubmit: (event) => event.preventDefault() },
       field('Zeugen, dich eingeschlossen', h('input', {
         type: 'number', min: '1', max: '99', value: sighting.witnesses,
@@ -369,9 +415,21 @@ export function renderReport(ctx, sighting) {
           : null,
       ),
       field('Dauer', h('input', {
+        'data-duration': '1',
         type: 'text', value: sighting.durationMin, maxlength: '40', placeholder: 'z. B. 20 Sekunden',
         onInput: (event) => { sighting.durationMin = event.target.value; touch(); },
       })),
+      h('p', { class: 'hint', 'data-live': 'watch' }, `Seit dem Stempel ${formatDuration(Math.max(0, (ctx.state.clock - sighting.observedAt) / 1000))}.`),
+      h('button', {
+        class: 'btn btn-ghost',
+        type: 'button',
+        onClick: (event) => {
+          sighting.durationMin = durationPhrase(Date.now() - sighting.observedAt);
+          const input = event.currentTarget.closest('form')?.querySelector('[data-duration]');
+          if (input) input.value = sighting.durationMin;
+          touch();
+        },
+      }, 'Dauer aus der Uhr übernehmen'),
       field('Wie es endete', h('select', {
         value: sighting.ending,
         onChange: (event) => { sighting.ending = event.target.value; touch(); },
@@ -384,6 +442,13 @@ export function renderReport(ctx, sighting) {
         value: sighting.sound,
         onChange: (event) => { sighting.sound = event.target.value; touch(); },
       }, options(SOUNDS, sighting.sound))),
+      field('Schall später, in Sekunden', h('input', {
+        type: 'number', min: '1', max: '180', step: '1', value: sighting.soundLag ?? '', placeholder: 'leer, wenn nichts zu hören war',
+        onInput: (event) => {
+          sighting.soundLag = event.target.value === '' ? null : Number(event.target.value);
+          touch();
+        },
+      })),
       h('fieldset', { class: 'checks' },
         h('legend', {}, 'Umgebung, nur was du bemerkt hast'),
         check('Tiere wurden unruhig', sighting.effects.animals, (checked) => { sighting.effects.animals = checked; touch(); }),
@@ -811,6 +876,7 @@ export function renderLog(ctx) {
   return h('section', { class: 'screen' },
     h('p', { class: 'kicker' }, 'Logbuch'),
     h('h1', {}, rows.length ? 'Was dieses Gerät behalten hat.' : 'Das Logbuch ist leer.'),
+    sightings.length ? h('p', { class: 'hint' }, bookSummary(sightings, ctx.state.clock)) : null,
     rows.length ? h('div', { class: 'stack' }, ...rows.map((row) => row.node)) : h('p', { class: 'lede' }, 'Eine Sichtung beginnt mit dem großen Knopf im Feld. Der Zeitpunkt wird sofort gespeichert, die Beschreibung kann warten.'),
     h('div', { class: 'row-actions' },
       h('button', { class: 'btn btn-ghost', type: 'button', onClick: ctx.exportAll, disabled: rows.length ? null : true }, 'Export'),
@@ -870,10 +936,22 @@ export function renderWissen() {
       h('li', {}, 'Starlink kommt oft als Kette.'),
       h('li', {}, 'Flugzeuge blinken und halten einen Kurs, besonders in der Nähe von Flughäfen.'),
       h('li', {}, 'Linsenreflexe und Kondensstreifen bewegen sich mit der Kamera oder dem Wind, nicht frei am Himmel.'),
+      h('li', {}, 'Sirius, Wega, Arktur und Capella sind die hellen Vergleichslichter. Der Polarstern prüft den Kompass.'),
+      h('li', {}, 'Sternschnuppen sind kurz. Eine Feuerkugel mit Knall gehört zum Arbeitskreis Meteore.'),
+      h('li', {}, 'Ein Ballon oder eine Himmelslaterne zieht mit dem Wind. Die Wetterzeile sagt, wohin.'),
+    ),
+    h('h2', {}, 'Augen und Film'),
+    h('p', {}, 'Volle Dunkeladaption dauert etwa 20 Minuten. Weißes Licht setzt sie zurück, Rotlicht weniger. Die Uhr dafür liegt im Feld und gehört zu jedem Nachthimmel, auch ohne Sitzung.'),
+    h('ul', {},
+      h('li', {}, 'Horizont, Haus oder Baum ins Bild, sonst fehlt der Bezug.'),
+      h('li', {}, 'Digitalen Zoom lassen. Ein Lichtpunkt wird dadurch zur Scheibe.'),
+      h('li', {}, 'Belichtung nicht dauernd nachregeln.'),
+      h('li', {}, 'Die Uhrzeit laut ins Video sagen und das Original behalten.'),
     ),
     h('h2', {}, 'Eine brauchbare Meldung'),
     h('p', {}, 'Uhrzeit in UTC, Ort, Blickrichtung und Höhe am Anfang und am Ende, Dauer, wie es aus dem Blick verschwand, Anzahl der Zeugen, ob du standest oder fuhrst, Winkelgröße statt einer geratenen Entfernung. Ein Foto oder eine Skizze hilft nur mit dieser Angabe. Die GEP nimmt Meldungen aus dem deutschsprachigen Raum entgegen. Horizont schickt nichts selbst weg. „Bericht kopieren“ legt denselben Text in die Zwischenablage.'),
     h('p', {}, h('a', { href: 'https://www.uap-research.org/ufo-uap-meldestelle/', target: '_blank', rel: 'noreferrer' }, 'GEP-Meldestelle öffnen')),
+    h('p', {}, h('a', { href: 'https://www.meteoros.de/feuerkugel', target: '_blank', rel: 'noreferrer' }, 'Feuerkugel an den Arbeitskreis Meteore')),
     h('h2', {}, 'Was Horizont nicht tut'),
     h('p', {}, 'Nichts verlässt das Gerät, außer du exportierst eine Datei oder öffnest einen externen Link. Es gibt keine gemeinsame Karte, keine Flugzeug-Radarlage und keine Vorhersage aller Satellitenpässe. Dafür bräuchte es ein Backend und laufend neue Bahndaten. Die eigene Meldung, der eigene Himmel und die eigene Sitzung gehen auch ohne Netz, sobald die Seite geladen ist.'),
   );

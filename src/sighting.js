@@ -1,5 +1,6 @@
 import { angleDiff, formatAzimuth, formatLat, formatLon, formatUtc, formatWhen } from './format.js';
 import { createId } from './id.js';
+import { windDrift } from './sky.js';
 
 export const SHAPES = [
   ['punkt', 'Lichtpunkt'],
@@ -124,6 +125,7 @@ export function createSighting(partial = {}, now = Date.now()) {
     stance: STANCE_IDS.has(partial.stance) ? partial.stance : '',
     witnesses: clampCount(partial.witnesses),
     smell: stringOf(partial.smell),
+    soundLag: lagSeconds(partial.soundLag),
     effects: cleanEffects(partial.effects),
     tracks: cleanTracks(partial.tracks),
     skyHint: stringOf(partial.skyHint),
@@ -159,6 +161,13 @@ function finiteOrNull(value) {
 
 function stringOf(value) {
   return typeof value === 'string' ? value : '';
+}
+
+function lagSeconds(value) {
+  if (value == null || value === '') return null;
+  const number = Math.round(Number(value));
+  if (!Number.isFinite(number) || number < 1) return null;
+  return Math.min(180, number);
 }
 
 function clampCount(value) {
@@ -201,7 +210,9 @@ export function reportText(sighting, now = Date.now()) {
     : 'Ort: keine Koordinaten');
   if (sighting.skyHint) lines.push(`Himmel: ${sighting.skyHint}`);
   if (sighting.weather && Number.isFinite(Number(sighting.weather.cloud_cover))) {
-    lines.push(`Wetter: Wolken ${Math.round(sighting.weather.cloud_cover)} %, ${Math.round(sighting.weather.temperature_2m)} °C, Wind ${Math.round(sighting.weather.wind_speed_10m)} km/h`);
+    const drift = windDrift(sighting.weather);
+    const base = `Wetter: Wolken ${Math.round(sighting.weather.cloud_cover)} %, ${Math.round(sighting.weather.temperature_2m)} °C`;
+    lines.push(drift ? `${base}. ${drift}` : `${base}, Wind ${Math.round(sighting.weather.wind_speed_10m)} km/h`);
   }
   lines.push(`Objekte: ${sighting.count}`);
   lines.push(`Form: ${labelOf(SHAPES, sighting.shape)}`);
@@ -226,6 +237,7 @@ export function reportText(sighting, now = Date.now()) {
   if (sighting.stance) lines.push(`Beobachter: ${labelOf(STANCES, sighting.stance)}`);
   lines.push(`Zeugen einschließlich dir: ${sighting.witnesses}`);
   lines.push(`Geräusch: ${labelOf(SOUNDS, sighting.sound)}`);
+  if (sighting.soundLag) lines.push(`Schall: ${sighting.soundLag} s später, grob ${(sighting.soundLag / 3).toFixed(1)} km, falls es derselbe Vorgang war.`);
   if (sighting.smell) lines.push(`Geruch: ${sighting.smell}`);
   const effects = [];
   if (sighting.effects.animals) effects.push('Tiere unruhig');
@@ -235,6 +247,27 @@ export function reportText(sighting, now = Date.now()) {
   if (sighting.notes) lines.push('', sighting.notes);
   lines.push('', 'Foto, Skizze und Sprachmemo liegen nur auf dem Gerät.');
   return `${lines.join('\n')}\n`;
+}
+
+export function reportGaps(sighting) {
+  const gaps = [];
+  if (!Number.isFinite(sighting.lat)) gaps.push('Ort');
+  if (!Number.isFinite(sighting.direction)) gaps.push('Richtung am Anfang');
+  if (!Number.isFinite(sighting.elevation)) gaps.push('Höhe am Anfang');
+  if (!sighting.durationMin) gaps.push('Dauer');
+  if (!sighting.ending) gaps.push('wie es endete');
+  if (!sighting.brightness) gaps.push('Helligkeit');
+  if (!sighting.size) gaps.push('Winkelgröße');
+  return gaps;
+}
+
+export function bookSummary(sightings, now = Date.now()) {
+  if (!sightings.length) return '';
+  const year = new Date(now).getFullYear();
+  const thisYear = sightings.filter((item) => new Date(item.observedAt).getFullYear() === year).length;
+  const directed = sightings.filter((item) => Number.isFinite(item.direction)).length;
+  const label = sightings.length === 1 ? 'Meldung' : 'Meldungen';
+  return `${sightings.length} ${label} auf diesem Gerät, ${thisYear} in ${year}, ${directed} mit Richtung.`;
 }
 
 export function toBackup(sightings, sessions, exportedAt = new Date().toISOString()) {

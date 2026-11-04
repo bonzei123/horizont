@@ -34,12 +34,15 @@ GPS funktioniert auf GitHub Pages, weil die Seite über HTTPS ausgeliefert wird.
 ## Was drin ist
 
 - Laufende GPS-Koordinaten, Genauigkeit und Kopieren
-- Himmel an diesem Ort: Sonne, Dämmerung, Mondphase, helle Planeten
-- Wolken, Sicht und Wind, wenn Open-Meteo erreichbar ist
+- Himmel an diesem Ort: Sonne, Dämmerung, Mondphase, helle Planeten und helle Sterne zum Vergleich, dazu der Polarstern
+- Laufende Sternschnuppenströme und ein Link für Feuerkugeln an den Arbeitskreis Meteore
+- Wolken, Sicht und Wind, wenn Open-Meteo erreichbar ist, inklusive der Richtung, in die ein Ballon zieht
+- 20 Minuten Dunkeladaption, unabhängig von einer Sitzung
 - Aktuelle ISS-Lage, wenn `wheretheiss.at` erreichbar ist
 - Kompass, falls das Gerät einen hat
 - Sichtung stempeln: Zeitpunkt und Ort sofort, Beschreibung danach, weitere Punkte auf derselben Meldung
-- Bericht zum Kopieren mit UTC, Ende der Sichtung, Zeugen, eigener Bewegung, Geruch und Umgebung
+- Bericht zum Kopieren mit UTC, Ende der Sichtung, Zeugen, eigener Bewegung, Geruch, Umgebung und Schallverzögerung
+- Dauer aus der Uhr der Meldung, und eine Zeile, was fürs Weitergeben noch fehlt
 - Skizze auf dem Gerät, Winkeländerung zwischen dem ersten und dem letzten Punkt
 - Himmel antippen für Richtung und Höhe, Helligkeit gegen Bekannte, Größe auf Armlänge
 - Sprachmemo an der Meldung, nur auf diesem Gerät

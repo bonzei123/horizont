@@ -8,6 +8,8 @@ import {
   destination,
   formatLat,
   formatLon,
+  compassNote,
+  durationPhrase,
   formatUtc,
   haversineKm,
   satelliteElevationDeg,
@@ -20,10 +22,12 @@ import {
   createSighting,
   parseBackup,
   angleRate,
+  bookSummary,
+  reportGaps,
   reportText,
   toBackup,
 } from '../src/sighting.js';
-import { cloudSpan, moonIllumination, moonPhaseName, nextIssPass, skySnapshot, sunBand } from '../src/sky.js';
+import { cloudSpan, moonIllumination, moonPhaseName, nextIssPass, showerWatch, skySnapshot, sunBand, windDrift } from '../src/sky.js';
 
 test('coordinates and compass points', () => {
   assert.equal(formatLat(52.52), '52.52000° N');
@@ -73,6 +77,48 @@ test('Berlin is in astronomical night on a November evening', () => {
   assert.ok(sky.sun.altitude < -18);
   assert.ok(sky.planets.length >= 0);
   assert.equal(typeof sky.moon.phaseName, 'string');
+  const polaris = sky.stars.find((star) => star.name === 'Polarstern');
+  assert.ok(polaris.altitude > 45 && polaris.altitude < 60);
+  assert.ok(sky.stars.some((star) => star.name === 'Sirius' || star.name === 'Wega' || star.name === 'Capella'));
+});
+
+test('meteor showers and wind drift stay local', () => {
+  const november = showerWatch(new Date(2026, 10, 4, 12));
+  assert.ok(november.active.some((shower) => shower.name === 'Orioniden'));
+  const august = showerWatch(new Date(2026, 7, 12, 22));
+  assert.ok(august.active.some((shower) => shower.name === 'Perseiden'));
+  const september = showerWatch(new Date(2026, 8, 1, 12));
+  assert.equal(september.active.length, 0);
+  assert.equal(september.next.name, 'Orioniden');
+  const drift = windDrift({ wind_direction_10m: 270, wind_speed_10m: 12 });
+  assert.match(drift, /aus 270° W/);
+  assert.match(drift, /nach O/);
+});
+
+test('a report names its gaps, the clock and a sound lag', () => {
+  const fresh = createSighting();
+  assert.ok(reportGaps(fresh).includes('Ort'));
+  assert.ok(reportGaps(fresh).includes('Dauer'));
+  assert.equal(durationPhrase(45_000), '45 Sekunden');
+  assert.equal(durationPhrase(180_000), '3 Minuten');
+  const heard = createSighting({
+    lat: 52.5,
+    lon: 13.4,
+    direction: 20,
+    elevation: 30,
+    durationMin: '2 Minuten',
+    ending: 'horizont',
+    brightness: 'stern',
+    size: 'punkt',
+    soundLag: 9,
+    weather: { cloud_cover: 20, temperature_2m: 4, wind_speed_10m: 12, wind_direction_10m: 270 },
+  });
+  assert.equal(reportGaps(heard).length, 0);
+  const text = reportText(heard);
+  assert.match(text, /Schall: 9 s später, grob 3\.0 km/);
+  assert.match(text, /nach O/);
+  assert.match(bookSummary([heard], Date.parse('2026-06-01T12:00:00Z')), /1 Meldung/);
+  assert.match(compassNote(12, true), /magnetisch/);
 });
 
 test('ids keep working when the page is not a secure context', () => {
