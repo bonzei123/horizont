@@ -184,6 +184,13 @@ p { margin: 0; }
 .photo { width: min(100%, 420px); border-radius: 16px; border: 1px solid var(--line); }
 .file-btn { position: relative; overflow: hidden; align-self: flex-start; }
 .file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.btn.is-on { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.sky-dial { width: min(100%, 280px); height: auto; touch-action: manipulation; display: block; }
+.dial-rim { fill: color-mix(in srgb, var(--raise) 75%, transparent); stroke: var(--line); stroke-width: 1.5; }
+.dial-zenith { fill: var(--muted); }
+.dial-mark { fill: var(--accent); stroke: var(--bg); stroke-width: 2; }
+.dial-label { fill: var(--muted); font-size: 11px; font-family: Outfit, sans-serif; }
+.memo { width: min(100%, 420px); }
 
 .phase-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .phase-list li { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start; padding: 10px 0; border-top: 1px solid var(--line); }

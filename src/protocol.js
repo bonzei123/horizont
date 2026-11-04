@@ -91,6 +91,7 @@ export function createSession(partial = {}, now = Date.now()) {
     notes: typeof partial.notes === 'string' ? partial.notes : '',
     sightingIds: Array.isArray(partial.sightingIds) ? partial.sightingIds.filter((id) => typeof id === 'string') : [],
     completed: Boolean(partial.completed),
+    emptySky: Boolean(partial.emptySky),
   };
 }
 

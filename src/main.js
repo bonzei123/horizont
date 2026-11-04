@@ -32,9 +32,10 @@ import {
   renderSession,
   renderWissen,
 } from './pages.js';
+import { createId } from './id.js';
 import { PHASES, createSession, phaseDue, phaseRemainingMs } from './protocol.js';
 import { createSighting, parseBackup, toBackup } from './sighting.js';
-import { issView, skyHint, skySnapshot } from './sky.js';
+import { cloudSpan, issSummary, issView, nextIssPass, skyHint, skySnapshot, weatherSummary } from './sky.js';
 import * as db from './store.js';
 
 const NIGHTS = ['amber', 'red', 'day'];
@@ -61,6 +62,9 @@ const state = {
   weatherError: false,
   iss: null,
   issView: null,
+  issPass: undefined,
+  cloudLine: '',
+  recordingId: '',
   route: parseRoute(),
   clock: Date.now(),
   guideStatus: '',
@@ -72,6 +76,7 @@ let saveTimer = 0;
 let weatherKey = '';
 let weatherAt = 0;
 let skyAt = 0;
+let memoTimer = 0;
 
 const ctx = {
   state,
@@ -97,6 +102,13 @@ const ctx = {
   probeTone,
   repeatPhase,
   attachPhoto,
+  toggleMemo,
+  addTrack,
+  savePlace,
+  usePlace,
+  removePlace,
+  markEmpty,
+  refreshReport: render,
   exportAll,
   pickImport,
   enableCompass,
@@ -343,22 +355,14 @@ function updateLive() {
 }
 
 function weatherText() {
-  if (state.weather) {
-    const vis = Number.isFinite(state.weather.visibility)
-      ? `${Math.round(state.weather.visibility / 1000)} km Sicht`
-      : 'Sicht unbekannt';
-    return `Wolken ${Math.round(state.weather.cloud_cover)} % · ${vis} · ${Math.round(state.weather.temperature_2m)} °C · Wind ${Math.round(state.weather.wind_speed_10m)} km/h`;
-  }
+  if (state.weather) return weatherSummary(state.weather, state.cloudLine);
   if (state.weatherError) return 'Wetter ist gerade nicht erreichbar. Die Meldung geht auch ohne.';
   return 'Wetter wird geladen, sobald ein Ort da ist.';
 }
 
 function issText() {
   if (!state.issView) return 'ISS-Lage wird nur geladen, wenn das Netz da ist.';
-  if (state.issView.visible) {
-    return `ISS über dem Horizont, ${formatAzimuth(state.issView.azimuth)}, Höhe ${Math.round(state.issView.elevation)}°.`;
-  }
-  return 'ISS ist gerade unter dem Horizont.';
+  return issSummary(state.issView, state.issPass);
 }
 
 function startGeo() {
@@ -448,11 +452,19 @@ async function refreshContext() {
       url.searchParams.set('latitude', pos.lat.toFixed(4));
       url.searchParams.set('longitude', pos.lon.toFixed(4));
       url.searchParams.set('current', 'temperature_2m,cloud_cover,visibility,wind_speed_10m');
+      url.searchParams.set('hourly', 'cloud_cover');
+      url.searchParams.set('forecast_hours', '12');
       url.searchParams.set('timezone', 'auto');
       const response = await fetch(url);
       if (!response.ok) throw new Error('weather');
       const data = await response.json();
       state.weather = data.current;
+      state.cloudLine = cloudSpan(
+        data.hourly?.time,
+        data.hourly?.cloud_cover,
+        state.sky?.astronomicalNightAt,
+        data.utc_offset_seconds || 0,
+      );
       state.weatherError = false;
       weatherAt = Date.now();
     } catch {
@@ -472,7 +484,30 @@ async function refreshContext() {
   } else if (state.iss) {
     state.issView = issView(pos.lat, pos.lon, state.iss);
   }
+  void refreshPass(pos);
   updateLive();
+}
+
+async function refreshPass(pos) {
+  const key = `${pos.lat.toFixed(1)},${pos.lon.toFixed(1)}`;
+  if (state.issPassKey === key && Date.now() - (state.issPassAt || 0) < 600000) return;
+  state.issPassKey = key;
+  state.issPassAt = Date.now();
+  try {
+    const start = Math.floor(Date.now() / 1000);
+    const stamps = Array.from({ length: 180 }, (_, index) => start + index * 120);
+    const url = `https://api.wheretheiss.at/v1/satellites/25544/positions?timestamps=${stamps.join(',')}&units=kilometers`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('pass');
+    const pass = nextIssPass(await response.json(), pos.lat, pos.lon);
+    if (pass) {
+      const sky = skySnapshot(pos.lat, pos.lon, pos.altitude || 0, new Date(pass.peak));
+      pass.dark = sky.sun.altitude < -6;
+    }
+    state.issPass = pass;
+  } catch {
+    if (state.issPass === undefined) state.issPass = null;
+  }
 }
 
 async function enableCompass() {
@@ -508,6 +543,8 @@ function onHeading(event) {
   state.headingAbsolute = absolute;
   const node = document.querySelector('[data-live="heading"]');
   if (node) node.textContent = formatAzimuth(heading);
+  const rose = document.querySelector('[data-dial-rose]');
+  if (rose) rose.setAttribute('transform', `rotate(${-heading} 100 100)`);
 }
 
 async function stamp(sessionId = null) {
@@ -729,6 +766,95 @@ function repeatPhase(session) {
   enterPhase(session, soundOpts({ again: true }));
 }
 
+function toggleMemo(sighting) {
+  if (state.memoRecorder) {
+    state.memoRecorder.stop();
+    return;
+  }
+  if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+    toast('Die Aufnahme braucht eine https-Adresse.');
+    return;
+  }
+  navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+    const mime = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : '';
+    const recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+    const chunks = [];
+    recorder.ondataavailable = (event) => { if (event.data?.size) chunks.push(event.data); };
+    recorder.onstop = () => {
+      clearTimeout(memoTimer);
+      stream.getTracks().forEach((track) => track.stop());
+      state.memoRecorder = null;
+      state.recordingId = '';
+      const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
+      if (blob.size < 800) {
+        toast('Die Aufnahme war zu kurz.');
+        render();
+        return;
+      }
+      if (blob.size > 2.5 * 1024 * 1024) {
+        toast('Die Aufnahme ist zu groß.');
+        render();
+        return;
+      }
+      sighting.audio = blob;
+      sighting.described = true;
+      sighting.updatedAt = Date.now();
+      db.putSighting(sighting).catch(() => toast('Speichern fehlgeschlagen.'));
+      render();
+      toast('Sprachmemo gespeichert, nur auf diesem Gerät.');
+    };
+    state.memoRecorder = recorder;
+    state.recordingId = sighting.id;
+    recorder.start();
+    memoTimer = window.setTimeout(() => { if (recorder.state === 'recording') recorder.stop(); }, 90000);
+    render();
+  }).catch(() => toast('Das Mikrofon bleibt zu.'));
+}
+
+function addTrack(sighting) {
+  sighting.tracks = [...sighting.tracks, {
+    at: Date.now(),
+    direction: sighting.direction,
+    elevation: sighting.elevation,
+  }].slice(-12);
+  sighting.described = true;
+  sighting.updatedAt = Date.now();
+  db.putSighting(sighting).catch(() => toast('Speichern fehlgeschlagen.'));
+  render();
+  toast('Weiterer Punkt gestempelt.');
+}
+
+function savePlace(name, pos) {
+  const clean = String(name || '').trim().slice(0, 32);
+  if (!clean || !pos || !Number.isFinite(pos.lat)) {
+    toast('Ohne Ort lässt sich kein Platz merken.');
+    return;
+  }
+  const places = (state.settings.places || []).filter((place) => place.name !== clean);
+  places.unshift({ id: createId(), name: clean, lat: pos.lat, lon: pos.lon });
+  state.settings.places = places.slice(0, 8);
+  db.saveSettings(state.settings);
+  render();
+  toast(`${clean} gemerkt.`);
+}
+
+function usePlace(place) {
+  setManual(place.lat, place.lon);
+}
+
+function removePlace(id) {
+  state.settings.places = (state.settings.places || []).filter((place) => place.id !== id);
+  db.saveSettings(state.settings);
+  render();
+}
+
+function markEmpty(session) {
+  session.emptySky = true;
+  db.putSession(session).catch(() => toast('Speichern fehlgeschlagen.'));
+  render();
+  toast('Leerer Himmel notiert.');
+}
+
 async function attachPhoto(sighting, file, input) {
   if (!file) return;
   if (file.size > 4 * 1024 * 1024) {
@@ -805,6 +931,9 @@ async function importFile(file) {
 }
 
 function onHashChange() {
+  if (state.memoRecorder && state.recordingId && !location.hash.includes(state.recordingId)) {
+    state.memoRecorder.stop();
+  }
   const next = parseRoute();
   if (next.name === 'melden' && !next.id) {
     void stampAndOpen(openSession()?.id || null);

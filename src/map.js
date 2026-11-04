@@ -1,5 +1,6 @@
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { destination } from './format.js';
 import { labelOf, SHAPES } from './sighting.js';
 
 let map = null;
@@ -47,6 +48,10 @@ export function mountMap(container, { position, sightings, onSelect }) {
     marker.bindTooltip(title, { direction: 'top', opacity: 0.95 });
     marker.on('click', () => onSelect(sighting.id));
     marker.addTo(markers);
+    drawRay(sighting.lat, sighting.lon, sighting.direction, 2500, '6 0');
+    for (const track of sighting.tracks || []) {
+      drawRay(sighting.lat, sighting.lon, track.direction, 1600, '2 7');
+    }
   }
   if (points.length > 1) {
     const bounds = L.latLngBounds(points);
@@ -54,6 +59,17 @@ export function mountMap(container, { position, sightings, onSelect }) {
     if (spread > 40) map.fitBounds(bounds, { padding: [36, 36], maxZoom: 15 });
   }
   requestAnimationFrame(() => map?.invalidateSize());
+}
+
+function drawRay(lat, lon, bearing, meters, dash) {
+  if (!Number.isFinite(bearing)) return;
+  const end = destination(lat, lon, bearing, meters);
+  L.polyline([[lat, lon], [end.lat, end.lon]], {
+    color: '#e2a45c',
+    weight: dash === '6 0' ? 2 : 1.5,
+    opacity: dash === '6 0' ? 0.9 : 0.55,
+    dashArray: dash,
+  }).addTo(markers);
 }
 
 export function placeYou(position) {

@@ -112,6 +112,46 @@ export function bearingDeg(lat1, lon1, lat2, lon2) {
   return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
 }
 
+export function destination(lat, lon, bearing, meters) {
+  const radius = 6371000;
+  const delta = meters / radius;
+  const theta = (bearing * Math.PI) / 180;
+  const lat1 = (lat * Math.PI) / 180;
+  const lon1 = (lon * Math.PI) / 180;
+  const lat2 = Math.asin(Math.sin(lat1) * Math.cos(delta) + Math.cos(lat1) * Math.sin(delta) * Math.cos(theta));
+  const lon2 = lon1 + Math.atan2(
+    Math.sin(theta) * Math.sin(delta) * Math.cos(lat1),
+    Math.cos(delta) - Math.sin(lat1) * Math.sin(lat2),
+  );
+  return {
+    lat: (lat2 * 180) / Math.PI,
+    lon: (((lon2 * 180) / Math.PI + 540) % 360) - 180,
+  };
+}
+
+export function skyDialPick(x, y, heading, radius = 78, center = 100) {
+  const dx = x - center;
+  const dy = y - center;
+  const dist = Math.hypot(dx, dy);
+  if (dist > radius + 8) return null;
+  const clamped = Math.min(dist, radius);
+  const elevation = Math.round(Math.max(0, Math.min(90, 90 * (1 - clamped / radius))));
+  const offset = (Math.atan2(dx, -dy) * 180) / Math.PI;
+  const facing = Number.isFinite(heading) ? heading : 0;
+  const direction = Math.round((facing + offset + 360) % 360) % 360;
+  return { direction, elevation };
+}
+
+export function skyDialPoint(direction, elevation, radius = 78, center = 100) {
+  if (!Number.isFinite(direction) || !Number.isFinite(elevation)) return null;
+  const offset = (direction * Math.PI) / 180;
+  const reach = (1 - Math.max(0, Math.min(90, elevation)) / 90) * radius;
+  return {
+    x: center + Math.sin(offset) * reach,
+    y: center - Math.cos(offset) * reach,
+  };
+}
+
 export function satelliteElevationDeg(lat, lon, satLat, satLon, satAltKm) {
   const earthKm = 6371;
   const central = haversineKm(lat, lon, satLat, satLon) / earthKm;

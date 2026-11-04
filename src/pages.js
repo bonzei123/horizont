@@ -9,22 +9,25 @@ import {
   formatDuration,
   formatLat,
   formatLon,
-  formatMag,
   formatWhen,
   osmLink,
+  skyDialPick,
+  skyDialPoint,
 } from './format.js';
 import { outputLabel } from './audio.js';
 import { PHASES, phaseRemainingMs, protocolMinutes } from './protocol.js';
 import {
+  BRIGHTNESS,
   ELEVATION_PRESETS,
   KINDS,
   MOTIONS,
   SHAPES,
+  SIZES,
   SOUNDS,
   confusionNotes,
   labelOf,
 } from './sighting.js';
-import { describeBody, nearbyBrightBodies } from './sky.js';
+import { describeBody, issSummary, nearbyBrightBodies, weatherSummary } from './sky.js';
 
 function field(label, control) {
   return h('label', { class: 'field' }, h('span', { class: 'field-label' }, label), control);
@@ -52,6 +55,7 @@ export function renderFeld(ctx) {
       ),
     ),
     manualBlock(ctx),
+    placesBlock(ctx),
     sky ? skyBlock(ctx, sky) : h('p', { class: 'hint' }, 'Der Himmel wird berechnet, sobald ein Ort da ist.'),
     weatherBlock(ctx),
     issBlock(ctx),
@@ -157,19 +161,13 @@ function weatherBlock(ctx) {
     return h('p', { class: 'hint', 'data-live': 'weather' }, 'Wetter ist gerade nicht erreichbar. Die Meldung geht auch ohne.');
   }
   if (!weather) return h('p', { class: 'hint', 'data-live': 'weather' }, 'Wetter wird geladen, sobald ein Ort da ist.');
-  const vis = Number.isFinite(weather.visibility) ? `${Math.round(weather.visibility / 1000)} km Sicht` : 'Sicht unbekannt';
-  return h('p', { class: 'panel meta-line', 'data-live': 'weather' },
-    `Wolken ${Math.round(weather.cloud_cover)} % · ${vis} · ${Math.round(weather.temperature_2m)} °C · Wind ${Math.round(weather.wind_speed_10m)} km/h`,
-  );
+  return h('p', { class: 'panel meta-line', 'data-live': 'weather' }, weatherSummary(weather, ctx.state.cloudLine));
 }
 
 function issBlock(ctx) {
   const iss = ctx.state.issView;
   if (!iss) return h('p', { class: 'hint', 'data-live': 'iss' }, 'ISS-Lage wird nur geladen, wenn das Netz da ist.');
-  const text = iss.visible
-    ? `ISS über dem Horizont, ${formatAzimuth(iss.azimuth)}, Höhe ${formatAltitude(iss.elevation)}.`
-    : 'ISS ist gerade unter dem Horizont.';
-  return h('p', { class: 'panel meta-line', 'data-live': 'iss' }, text);
+  return h('p', { class: 'panel meta-line', 'data-live': 'iss' }, issSummary(iss, ctx.state.issPass));
 }
 
 function compassBlock(ctx) {
@@ -188,6 +186,40 @@ function headingNote(ctx) {
   if (!Number.isFinite(ctx.state.heading)) return 'Viele Laptops haben keinen Kompass. Auf dem Telefon fragt das System nach.';
   if (!ctx.state.headingAbsolute) return 'Ungefähre Richtung. Das Gerät liefert keinen absoluten Kompass.';
   return `Gerätekompass, ${compassPoint(ctx.state.heading)}.`;
+}
+
+function placesBlock(ctx) {
+  const pos = ctx.position;
+  const places = ctx.state.settings.places || [];
+  return h('details', { class: 'panel fold' },
+    h('summary', {}, 'Feste Plätze'),
+    places.length
+      ? h('div', { class: 'stack' }, ...places.map((place) => h('div', { class: 'row-actions' },
+        h('button', {
+          class: 'btn btn-ghost',
+          type: 'button',
+          onClick: () => ctx.usePlace(place),
+        }, place.name),
+        h('button', {
+          class: 'btn btn-ghost',
+          type: 'button',
+          onClick: () => ctx.removePlace(place.id),
+        }, 'Entfernen'),
+      )))
+      : h('p', { class: 'hint' }, 'Noch kein Platz. Der Balkon oder der Acker merkt sich die Koordinaten, die gerade gelten.'),
+    h('form', {
+      class: 'stack',
+      onSubmit: (event) => {
+        event.preventDefault();
+        const data = new FormData(event.currentTarget);
+        ctx.savePlace(String(data.get('name') || ''), pos);
+        event.currentTarget.reset();
+      },
+    },
+      field('Name', h('input', { name: 'name', type: 'text', maxlength: '32', required: true, placeholder: 'Balkon' })),
+      h('button', { class: 'btn btn-primary', type: 'submit', disabled: pos ? null : true }, 'Diesen Ort merken'),
+    ),
+  );
 }
 
 function latestBlock(ctx) {
@@ -251,18 +283,39 @@ export function renderReport(ctx, sighting) {
         value: sighting.motion,
         onChange: (event) => { sighting.motion = event.target.value; touch(); },
       }, options(MOTIONS, sighting.motion))),
+      skyDial(ctx, sighting, touch),
+      h('div', { class: 'field' },
+        h('span', { class: 'field-label' }, 'Helligkeit'),
+        choice(BRIGHTNESS, sighting.brightness, (id) => {
+          sighting.brightness = sighting.brightness === id ? '' : id;
+          touch();
+          ctx.refreshReport();
+        }),
+      ),
+      h('div', { class: 'field' },
+        h('span', { class: 'field-label' }, 'Größe auf Armlänge'),
+        choice(SIZES, sighting.size, (id) => {
+          sighting.size = sighting.size === id ? '' : id;
+          touch();
+          ctx.refreshReport();
+        }),
+      ),
       field(`Höhe über dem Horizont · ${sighting.elevation ?? 30}°`, h('input', {
+        name: 'elevation',
         type: 'range', min: '0', max: '90', step: '1', value: sighting.elevation ?? 30,
         onInput: (event) => {
           sighting.elevation = Number(event.target.value);
           event.target.parentElement.querySelector('.field-label').textContent = `Höhe über dem Horizont · ${sighting.elevation}°`;
+          moveDialMark(event.target.closest('form'), sighting, ctx.state.heading);
           touch();
         },
       })),
       field('Richtung des Objekts', h('input', {
+        name: 'direction',
         type: 'number', min: '0', max: '359', step: '1', value: sighting.direction ?? '', placeholder: 'Grad, 0 ist Nord',
         onInput: (event) => {
           sighting.direction = event.target.value === '' ? null : Number(event.target.value);
+          moveDialMark(event.target.closest('form'), sighting, ctx.state.heading);
           touch();
         },
       })),
@@ -288,6 +341,13 @@ export function renderReport(ctx, sighting) {
           touch();
         },
       }, `${deg}°`))),
+      h('div', { class: 'stack' },
+        h('button', { class: 'btn btn-ghost', type: 'button', onClick: () => ctx.addTrack(sighting) }, 'Weiteren Punkt stempeln'),
+        h('p', { class: 'hint' }, 'Gleicher Vorgang, neue Uhrzeit. Richtung und Höhe nimmst du vom Stand jetzt.'),
+        sighting.tracks.length
+          ? h('div', { class: 'stack' }, ...sighting.tracks.map((track) => h('p', { class: 'hint' }, trackLine(track))))
+          : null,
+      ),
       field('Dauer', h('input', {
         type: 'text', value: sighting.durationMin, maxlength: '40', placeholder: 'z. B. 20 Sekunden',
         onInput: (event) => { sighting.durationMin = event.target.value; touch(); },
@@ -325,6 +385,16 @@ export function renderReport(ctx, sighting) {
           ? 'Das Foto liegt in diesem Browser, höchstens 4 MB.'
           : 'Höchstens 4 MB. Es wird nicht mit exportiert.'),
       ),
+      h('div', { class: 'field' },
+        h('span', { class: 'field-label' }, 'Sprachmemo, bleibt auf diesem Gerät'),
+        h('button', {
+          class: 'btn btn-ghost',
+          type: 'button',
+          onClick: () => ctx.toggleMemo(sighting),
+        }, ctx.state.recordingId === sighting.id ? 'Aufnahme stoppen' : 'Aufnahme starten'),
+        h('p', { class: 'hint' }, 'Tippen, sprechen, nochmal tippen. Höchstens anderthalb Minuten. Die Datei geht nicht in den Export.'),
+      ),
+      memoBlock(sighting),
       photoBlock(sighting),
       sighting.skyHint ? h('p', { class: 'hint' }, `Zum Zeitpunkt: ${sighting.skyHint}`) : null,
     ),
@@ -332,6 +402,111 @@ export function renderReport(ctx, sighting) {
       h('button', { class: 'btn btn-danger', type: 'button', onClick: () => ctx.removeSighting(sighting) }, 'Meldung löschen'),
     ),
   );
+}
+
+function sessionMeta(session) {
+  const count = `${session.sightingIds.length} Meldungen`;
+  if (session.emptySky && session.sightingIds.length === 0) return `${formatWhen(session.startedAt)} · nichts gesehen`;
+  return `${formatWhen(session.startedAt)} · ${count}`;
+}
+
+function choice(list, current, onPick) {
+  return h('div', { class: 'chips' }, ...list.map(([id, name]) => h('button', {
+    class: `btn btn-ghost${current === id ? ' is-on' : ''}`,
+    type: 'button',
+    onClick: () => onPick(id),
+  }, name)));
+}
+
+function trackLine(track) {
+  const where = Number.isFinite(track.direction) ? formatAzimuth(track.direction) : 'ohne Richtung';
+  const high = Number.isFinite(track.elevation) ? `${Math.round(track.elevation)}° hoch` : 'ohne Höhe';
+  return `${formatClock(track.at)} · ${where} · ${high}`;
+}
+
+function skyDial(ctx, sighting, touch) {
+  const heading = ctx.state.heading;
+  const mark = skyDialPoint(sighting.direction, sighting.elevation ?? 30);
+  const rose = svgEl('g', {
+    'data-dial-rose': '1',
+    transform: Number.isFinite(heading) ? `rotate(${-heading} 100 100)` : '',
+  },
+    svgEl('text', { x: '100', y: '18', 'text-anchor': 'middle', class: 'dial-label' }, 'N'),
+    svgEl('text', { x: '184', y: '104', 'text-anchor': 'middle', class: 'dial-label' }, 'O'),
+    svgEl('text', { x: '100', y: '190', 'text-anchor': 'middle', class: 'dial-label' }, 'S'),
+    svgEl('text', { x: '16', y: '104', 'text-anchor': 'middle', class: 'dial-label' }, 'W'),
+    mark ? svgEl('circle', { 'data-dial-mark': '1', cx: mark.x, cy: mark.y, r: '6', class: 'dial-mark' }) : svgEl('circle', { 'data-dial-mark': '1', cx: '100', cy: '100', r: '6', class: 'dial-mark', visibility: 'hidden' }),
+  );
+  return h('div', { class: 'stack' },
+    h('p', { class: 'field-label' }, 'Himmel antippen'),
+    svgEl('svg', {
+      class: 'sky-dial',
+      viewBox: '0 0 200 200',
+      role: 'img',
+      'aria-label': 'Himmel. Mitte ist oben, der Rand ist der Horizont.',
+      onClick: (event) => {
+        const rect = event.currentTarget.getBoundingClientRect();
+        const x = ((event.clientX - rect.left) / rect.width) * 200;
+        const y = ((event.clientY - rect.top) / rect.height) * 200;
+        const pick = skyDialPick(x, y, ctx.state.heading);
+        if (!pick) return;
+        sighting.direction = pick.direction;
+        sighting.elevation = pick.elevation;
+        const form = event.currentTarget.closest('form');
+        const direction = form?.querySelector('[name="direction"]');
+        const elevation = form?.querySelector('[name="elevation"]');
+        if (direction) direction.value = String(pick.direction);
+        if (elevation) {
+          elevation.value = String(pick.elevation);
+          const label = elevation.closest('.field')?.querySelector('.field-label');
+          if (label) label.textContent = `Höhe über dem Horizont · ${pick.elevation}°`;
+        }
+        moveDialMark(form, sighting, ctx.state.heading);
+        touch();
+      },
+    },
+      svgEl('circle', { cx: '100', cy: '100', r: '78', class: 'dial-rim' }),
+      svgEl('circle', { cx: '100', cy: '100', r: '2', class: 'dial-zenith' }),
+      rose,
+    ),
+    h('p', { class: 'hint' }, Number.isFinite(heading)
+      ? 'Mitte ist der Zenit, der Rand der Horizont. Oben ist die Richtung, in die du schaust.'
+      : 'Mitte ist der Zenit, der Rand der Horizont. Oben ist Norden, bis der Kompass läuft.'),
+  );
+}
+
+function moveDialMark(form, sighting, heading) {
+  const mark = form?.querySelector('[data-dial-mark]');
+  const rose = form?.querySelector('[data-dial-rose]');
+  if (rose) rose.setAttribute('transform', Number.isFinite(heading) ? `rotate(${-heading} 100 100)` : '');
+  const point = skyDialPoint(sighting.direction, sighting.elevation);
+  if (!mark || !point || !Number.isFinite(sighting.direction)) return;
+  mark.setAttribute('cx', String(point.x));
+  mark.setAttribute('cy', String(point.y));
+  mark.removeAttribute('visibility');
+}
+
+function svgEl(name, attrs, ...children) {
+  const node = document.createElementNS('http://www.w3.org/2000/svg', name);
+  for (const [key, value] of Object.entries(attrs || {})) {
+    if (value == null || value === false) continue;
+    if (key.startsWith('on') && typeof value === 'function') node.addEventListener(key.slice(2).toLowerCase(), value);
+    else node.setAttribute(key, String(value));
+  }
+  for (const child of children.flat()) {
+    if (child) node.append(child);
+  }
+  return node;
+}
+
+let memoUrl = null;
+
+function memoBlock(sighting) {
+  if (memoUrl) URL.revokeObjectURL(memoUrl);
+  memoUrl = null;
+  if (!(sighting.audio instanceof Blob)) return null;
+  memoUrl = URL.createObjectURL(sighting.audio);
+  return h('audio', { class: 'memo', controls: true, src: memoUrl });
 }
 
 function sightingPlace(sighting) {
@@ -455,6 +630,13 @@ export function renderSession(ctx, session) {
       audioControls(ctx),
     ),
     h('button', { class: 'btn btn-primary btn-xl', type: 'button', onClick: () => ctx.stampAndOpen(session.id) }, 'Sichtung melden'),
+    session.sightingIds.length
+      ? null
+      : h('button', {
+        class: 'btn btn-ghost btn-xl',
+        type: 'button',
+        onClick: () => ctx.markEmpty(session),
+      }, session.emptySky ? 'Nichts gesehen, notiert' : 'Nichts gesehen'),
     field('Notiz zur Sitzung', h('textarea', {
       rows: '4',
       value: session.notes,
@@ -483,7 +665,7 @@ function renderFinishedSession(ctx, session) {
   return h('section', { class: 'screen' },
     h('p', { class: 'kicker' }, 'Abgeschlossen'),
     h('h1', {}, 'Die Sitzung ist zu.'),
-    h('p', { class: 'lede' }, `${formatWhen(session.startedAt)} bis ${formatWhen(session.endedAt)}. ${session.sightingIds.length === 0 ? 'Keine Sichtung gestempelt.' : `${session.sightingIds.length} Meldung${session.sightingIds.length === 1 ? '' : 'en'}.`}`),
+    h('p', { class: 'lede' }, `${formatWhen(session.startedAt)} bis ${formatWhen(session.endedAt)}. ${session.sightingIds.length === 0 ? (session.emptySky ? 'Nichts gesehen.' : 'Keine Sichtung gestempelt.') : `${session.sightingIds.length} Meldung${session.sightingIds.length === 1 ? '' : 'en'}.`}`),
     session.notes ? h('div', { class: 'panel prose' }, h('p', {}, session.notes)) : h('p', { class: 'hint' }, 'Ohne Notiz. Ein leerer Himmel darf so stehen bleiben.'),
     h('div', { class: 'stack' }, ...session.sightingIds.map((id) => h('a', { class: 'btn btn-ghost', href: `#/melden/${id}` }, 'Meldung öffnen'))),
     h('div', { class: 'row-actions' },
@@ -508,7 +690,7 @@ export function renderLog(ctx) {
       h('button', { class: 'btn btn-ghost', type: 'button', onClick: ctx.exportAll, disabled: rows.length ? null : true }, 'Export'),
       h('button', { class: 'btn btn-ghost', type: 'button', onClick: ctx.pickImport }, 'Import'),
     ),
-    h('p', { class: 'hint' }, 'Fotos bleiben beim Export außen vor. Sie liegen nur in diesem Browser.'),
+    h('p', { class: 'hint' }, 'Fotos und Sprachmemos bleiben beim Export außen vor. Sie liegen nur in diesem Browser.'),
   );
 }
 
@@ -522,7 +704,7 @@ function sightingRow(sighting) {
 function sessionRow(session) {
   return h('a', { class: 'panel log-item', href: `#/ce5/sitzung/${session.id}` },
     h('span', { class: 'log-title' }, session.completed ? 'CE5-Sitzung' : 'CE5 läuft noch'),
-    h('span', { class: 'log-meta' }, `${formatWhen(session.startedAt)} · ${session.sightingIds.length} Meldungen`),
+    h('span', { class: 'log-meta' }, sessionMeta(session)),
   );
 }
 

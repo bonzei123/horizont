@@ -41,6 +41,23 @@ export const KINDS = [
 
 export const ELEVATION_PRESETS = [5, 15, 30, 45, 70, 90];
 
+export const BRIGHTNESS = [
+  ['schwach', 'Schwächer als ein Stern'],
+  ['stern', 'Wie ein heller Stern'],
+  ['planet', 'Wie Venus oder Jupiter'],
+  ['iss', 'Wie die ISS'],
+  ['grell', 'Noch heller'],
+];
+
+export const SIZES = [
+  ['punkt', 'Punkt'],
+  ['muenze', 'Münzgroß auf Armlänge'],
+  ['mond', 'Mondgroß'],
+];
+
+const BRIGHTNESS_IDS = new Set(BRIGHTNESS.map(([id]) => id));
+const SIZE_IDS = new Set(SIZES.map(([id]) => id));
+
 const SHAPE_IDS = new Set(SHAPES.map(([id]) => id));
 const MOTION_IDS = new Set(MOTIONS.map(([id]) => id));
 const SOUND_IDS = new Set(SOUNDS.map(([id]) => id));
@@ -75,11 +92,24 @@ export function createSighting(partial = {}, now = Date.now()) {
     train: Boolean(partial.train),
     notes: stringOf(partial.notes),
     kind: KIND_IDS.has(partial.kind) ? partial.kind : 'unklar',
+    brightness: BRIGHTNESS_IDS.has(partial.brightness) ? partial.brightness : '',
+    size: SIZE_IDS.has(partial.size) ? partial.size : '',
+    tracks: cleanTracks(partial.tracks),
     skyHint: stringOf(partial.skyHint),
     weather: partial.weather && typeof partial.weather === 'object' ? partial.weather : null,
     sessionId: typeof partial.sessionId === 'string' ? partial.sessionId : null,
     photo: partial.photo instanceof Blob ? partial.photo : null,
+    audio: partial.audio instanceof Blob ? partial.audio : null,
   };
+}
+
+function cleanTracks(value) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 12).map((track) => ({
+    at: Number(track?.at),
+    direction: finiteOrNull(track?.direction),
+    elevation: finiteOrNull(track?.elevation),
+  })).filter((track) => Number.isFinite(track.at));
 }
 
 function finiteOrNull(value) {
@@ -123,6 +153,7 @@ export function publicSighting(sighting) {
   return {
     ...sighting,
     photo: Boolean(sighting.photo),
+    audio: Boolean(sighting.audio),
   };
 }
 
@@ -133,7 +164,7 @@ export function parseBackup(data) {
     throw new Error('Diese Datei ist kein Horizont-Export.');
   }
   return {
-    sightings: sightings.map((item) => createSighting({ ...item, photo: null })),
+    sightings: sightings.map((item) => createSighting({ ...item, photo: null, audio: null })),
     sessions: sessions.filter((item) => item && typeof item.id === 'string'),
   };
 }

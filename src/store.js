@@ -84,6 +84,7 @@ export function loadSettings() {
       volume: Number.isFinite(volume) ? Math.min(1, Math.max(0.05, volume)) : 0.7,
       sinkId: typeof data.sinkId === 'string' ? data.sinkId : '',
       sinkLabel: typeof data.sinkLabel === 'string' ? data.sinkLabel : '',
+      places: cleanPlaces(data.places),
     };
   } catch {
     return defaultSettings();
@@ -101,7 +102,23 @@ function defaultSettings() {
     volume: 0.7,
     sinkId: '',
     sinkLabel: '',
+    places: [],
   };
+}
+
+function cleanPlaces(value) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 8).filter((place) => place
+    && typeof place.id === 'string'
+    && typeof place.name === 'string'
+    && place.name.trim()
+    && Number.isFinite(Number(place.lat))
+    && Number.isFinite(Number(place.lon))).map((place) => ({
+    id: place.id,
+    name: place.name.trim().slice(0, 32),
+    lat: Number(place.lat),
+    lon: Number(place.lon),
+  }));
 }
 
 export function saveSettings(settings) {
@@ -115,5 +132,6 @@ export function saveSettings(settings) {
     volume: settings.volume,
     sinkId: settings.sinkId,
     sinkLabel: settings.sinkLabel,
+    places: settings.places,
   }));
 }

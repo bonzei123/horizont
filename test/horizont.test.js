@@ -5,10 +5,12 @@ import {
   angleDiff,
   bearingDeg,
   compassPoint,
+  destination,
   formatLat,
   formatLon,
   haversineKm,
   satelliteElevationDeg,
+  skyDialPick,
 } from '../src/format.js';
 import { createId } from '../src/id.js';
 import { PHASES, createSession, phaseDue, phaseRemainingMs, protocolMinutes } from '../src/protocol.js';
@@ -18,7 +20,7 @@ import {
   parseBackup,
   toBackup,
 } from '../src/sighting.js';
-import { moonIllumination, moonPhaseName, skySnapshot, sunBand } from '../src/sky.js';
+import { cloudSpan, moonIllumination, moonPhaseName, nextIssPass, skySnapshot, sunBand } from '../src/sky.js';
 
 test('coordinates and compass points', () => {
   assert.equal(formatLat(52.52), '52.52000° N');
@@ -109,11 +111,55 @@ test('backup round trip drops photos and rejects junk', () => {
   const sighting = createSighting({ id: 's1', notes: 'hell', photo: new Blob(['x']) });
   const backup = toBackup([sighting], [{ id: 'c1' }], '2026-11-03T00:00:00.000Z');
   assert.equal(backup.sightings[0].photo, true);
+  assert.equal(backup.sightings[0].audio, false);
   const parsed = parseBackup(backup);
   assert.equal(parsed.sightings[0].notes, 'hell');
   assert.equal(parsed.sightings[0].photo, null);
   assert.equal(parsed.sessions[0].id, 'c1');
   assert.throws(() => parseBackup({ app: 'horizont' }), /Horizont-Export/);
+});
+
+test('sky dial, direction ray and sighting details stay explicit', () => {
+  const north = skyDialPick(100, 22, 0);
+  assert.equal(north.elevation, 0);
+  assert.equal(north.direction, 0);
+  const zenith = skyDialPick(100, 100, 20);
+  assert.equal(zenith.elevation, 90);
+  const east = destination(52, 13, 90, 2000);
+  assert.ok(east.lon > 13);
+  assert.ok(Math.abs(east.lat - 52) < 0.02);
+  const sighting = createSighting({
+    brightness: 'planet',
+    size: 'muenze',
+    tracks: [{ at: 50, direction: 10, elevation: 20 }, { at: 'nope' }],
+    audio: new Blob(['a']),
+  });
+  assert.equal(sighting.brightness, 'planet');
+  assert.equal(sighting.size, 'muenze');
+  assert.equal(sighting.tracks.length, 1);
+  assert.equal(sighting.audio.size, 1);
+  assert.equal(createSighting({ brightness: 'nope' }).brightness, '');
+  assert.equal(createSession({ emptySky: true }).emptySky, true);
+});
+
+test('cloud span and the next ISS pass', () => {
+  const line = cloudSpan(
+    ['2026-11-04T20:00', '2026-11-04T21:00', '2026-11-04T23:00'],
+    [10, 40, 90],
+    Date.parse('2026-11-04T22:00:00Z'),
+    0,
+    Date.parse('2026-11-04T20:30:00Z'),
+  );
+  assert.match(line, /10–40/);
+  assert.match(line, /astronomischen Nacht/);
+  const pass = nextIssPass([
+    { timestamp: 1000, latitude: 0, longitude: 0, altitude: 420, visibility: 'daylight' },
+    { timestamp: 1060, latitude: 10, longitude: 0, altitude: 420, visibility: 'daylight' },
+    { timestamp: 1120, latitude: 50, longitude: 0, altitude: 420, visibility: 'eclipsed' },
+  ], 52, 0, 1000 * 1000);
+  assert.ok(pass);
+  assert.equal(pass.lit, false);
+  assert.ok(pass.maxElevation > 10);
 });
 
 test('calm voice clips cover every spoken line', () => {
