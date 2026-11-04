@@ -2,11 +2,5 @@ services:
   horizont:
     build: .
     ports:
-      # Docker reicht den Port auf IPv4 weiter. Der Reverse Proxy muss 127.0.0.1 ansprechen.
       - "7777:8080"
     restart: unless-stopped
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"

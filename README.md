@@ -76,14 +76,6 @@ Dieselbe Folge steht in `deploy/update.sh`. In der Aufgabenplanung der Synology 
 
 GPS funktioniert im Browser nur über HTTPS. `http://` auf die NAS-Adresse, auch durch ein VPN, ist für den Browser unsicher, und er verweigert den Standort. Ein selbst signiertes Zertifikat zählt erst, wenn das Telefon es als vertrauenswürdig gespeichert hat und die Adresse genau zum Namen im Zertifikat passt. In der Systemsteuerung unter Anmeldeportal, Erweitert, Reverse Proxy die Quelle auf HTTPS legen, zum Beispiel `horizont.bonzei.eu` auf Port 443, und das Ziel auf `http://127.0.0.1:7777`. Ohne Zertifikat bleiben die Koordinaten von Hand eintragbar.
 
-Wenn `horizont.bonzei.eu` nach ein paar Stunden aussetzt, der Container aber noch läuft, hat der Reverse Proxy `localhost` auf IPv6 aufgelöst. Docker hört auf diesem Port nur über IPv4, deshalb bleibt `http://127.0.0.1:7777` erreichbar, während der Name tot ist. Im Ziel des Reverse Proxy `127.0.0.1` eintragen und speichern. Zur Kontrolle, während der Name tot ist: im Browser `http://` und die NAS-Adresse mit Port 7777 öffnen. Geht diese Seite auf, ist nur der Proxy stehen geblieben.
-
-Dieselbe Prüfung steht in `deploy/proxy-watch.sh`. In der Aufgabenplanung als root alle 15 Minuten:
-
-```bash
-/bin/sh /volume1/docker/horizont/deploy/proxy-watch.sh
-```
-
-Antwortet der Container nicht, startet das Skript ihn neu. Antwortet der Name auf dem NAS selbst nicht, startet es den nginx der Synology neu. Ein abgelehntes Zertifikat lässt es in Ruhe.
+Im Vodafone-Netz zu Hause geht `horizont.bonzei.eu` oft nicht auf. Der Anschluss gibt eine Adresse, die auf die eigene öffentliche IP zeigt, nicht zurück ins Haus. Im Handynetz kommt der Weg von außen, dort geht die Seite auf. Der Reverse Proxy bleibt dabei laufen. Wer den Namen auch zu Hause im Browser haben will, legt lokal einen DNS-Eintrag an: `horizont.bonzei.eu` zeigt auf die LAN-Adresse des NAS.
 
 Die geführte Sitzung startet auch über `http`. Vorher ist der Start dort abgebrochen, weil der Browser ohne Zertifikat `crypto.randomUUID` verweigert und die Sitzung keine Kennung bekam. Stimme und Uhr laufen danach. Das Wachhalten des Bildschirms bleibt an HTTPS gebunden, deshalb den Bildschirm anlassen.
