@@ -8,6 +8,7 @@ import {
   destination,
   formatLat,
   formatLon,
+  formatUtc,
   haversineKm,
   satelliteElevationDeg,
   skyDialPick,
@@ -18,6 +19,8 @@ import {
   confusionNotes,
   createSighting,
   parseBackup,
+  angleRate,
+  reportText,
   toBackup,
 } from '../src/sighting.js';
 import { cloudSpan, moonIllumination, moonPhaseName, nextIssPass, skySnapshot, sunBand } from '../src/sky.js';
@@ -160,6 +163,33 @@ test('cloud span and the next ISS pass', () => {
   assert.ok(pass);
   assert.equal(pass.lit, false);
   assert.ok(pass.maxElevation > 10);
+});
+
+test('a copied report carries utc, ending and angular rate', () => {
+  assert.equal(formatUtc(Date.parse('2026-11-04T18:30:00Z')), '2026-11-04 18:30 UTC');
+  const sighting = createSighting({
+    observedAt: Date.parse('2026-11-04T18:30:00Z'),
+    lat: 52.5,
+    lon: 13.4,
+    direction: 10,
+    elevation: 20,
+    witnesses: 2,
+    ending: 'ploetzlich',
+    stance: 'still',
+    effects: { animals: true },
+    tracks: [{ at: Date.parse('2026-11-04T18:30:10Z'), direction: 40, elevation: 20 }],
+    sketch: new Blob(['s']),
+  });
+  const text = reportText(sighting, Date.parse('2026-11-04T19:00:00Z'));
+  assert.match(text, /2026-11-04 18:30 UTC/);
+  assert.match(text, /Plötzlich weg/);
+  assert.match(text, /Zeugen einschließlich dir: 2/);
+  assert.match(text, /Tiere unruhig/);
+  assert.match(text, /°\/s/);
+  assert.ok(angleRate(sighting) > 2);
+  const backup = toBackup([sighting], []);
+  assert.equal(backup.sightings[0].sketch, true);
+  assert.equal(parseBackup(backup).sightings[0].sketch, null);
 });
 
 test('calm voice clips cover every spoken line', () => {

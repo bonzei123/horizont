@@ -63,6 +63,21 @@ export function formatWhen(ts, now = Date.now()) {
   }).format(date);
 }
 
+export function formatUtc(ts) {
+  const date = new Date(ts);
+  if (Number.isNaN(date.getTime())) return '';
+  const text = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'UTC',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(date);
+  return `${text} UTC`;
+}
+
 export function formatClock(ts) {
   return new Intl.DateTimeFormat('de-DE', {
     hour: '2-digit',

@@ -39,6 +39,8 @@ GPS funktioniert auf GitHub Pages, weil die Seite über HTTPS ausgeliefert wird.
 - Aktuelle ISS-Lage, wenn `wheretheiss.at` erreichbar ist
 - Kompass, falls das Gerät einen hat
 - Sichtung stempeln: Zeitpunkt und Ort sofort, Beschreibung danach, weitere Punkte auf derselben Meldung
+- Bericht zum Kopieren mit UTC, Ende der Sichtung, Zeugen, eigener Bewegung, Geruch und Umgebung
+- Skizze auf dem Gerät, Winkeländerung zwischen dem ersten und dem letzten Punkt
 - Himmel antippen für Richtung und Höhe, Helligkeit gegen Bekannte, Größe auf Armlänge
 - Sprachmemo an der Meldung, nur auf diesem Gerät
 - Feste Plätze mit gemerkten Koordinaten
@@ -53,7 +55,7 @@ GPS funktioniert auf GitHub Pages, weil die Seite über HTTPS ausgeliefert wird.
 - Karte der eigenen Punkte
 - Export und Import als JSON
 
-Fotos und Sprachmemos bleiben im Browser und kommen im JSON-Export nicht mit. Eine Meldung an die [GEP](https://www.uap-research.org/ufo-uap-meldestelle/) schickt die App nicht selbst ab. Der Link liegt in der Meldung.
+Fotos, Skizzen und Sprachmemos bleiben im Browser und kommen im JSON-Export nicht mit. Der kopierte Bericht ist der Text für eine Meldestelle oder ein Forum. Die App schickt ihn nicht selbst ab. Eine Meldung an die [GEP](https://www.uap-research.org/ufo-uap-meldestelle/) schickt die App nicht selbst ab. Der Link liegt in der Meldung.
 
 CE5 ist hier der öffentlich beschriebene Übungsrahmen: ruhige Absicht, stille Beobachtung, Protokoll. Die Führung spricht mit einer langsamen Stimme, die in der App liegt (Thorsten Müller, [Thorsten-Voice](https://www.thorsten-voice.de/), Daten unter CC0). Sie folgt der gewählten Ausgabe. Fehlt die Datei, spricht die Systemstimme. Der Ruheton ist eine leise Stütze und kein Signal, und er ist nicht die kommerzielle CSETI-Tonfolge. Der Dog Whistle ist ein zusätzlicher Schalter und zu Beginn aus. Er spielt denselben öffentlichen Stapel, den mehrere JavaScript-Beispiele erzeugen: 100 Hz mit 7,83 Hz, 432 Hz, 528 Hz, kurze Töne bei 2,5 kHz und leise Pings bei 17 kHz. Die Übung braucht ihn nicht, und die App behauptet nicht, dass er etwas am Himmel bewirkt. Laser gehören nicht dazu. Einen Laser auf ein Luftfahrzeug zu richten ist in Deutschland strafbar.
 

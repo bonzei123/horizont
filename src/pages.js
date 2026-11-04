@@ -9,6 +9,7 @@ import {
   formatDuration,
   formatLat,
   formatLon,
+  formatUtc,
   formatWhen,
   osmLink,
   skyDialPick,
@@ -18,14 +19,19 @@ import { outputLabel } from './audio.js';
 import { PHASES, phaseRemainingMs, protocolMinutes } from './protocol.js';
 import {
   BRIGHTNESS,
+  ENDINGS,
   ELEVATION_PRESETS,
   KINDS,
   MOTIONS,
+  NOTICED,
   SHAPES,
   SIZES,
   SOUNDS,
+  STANCES,
+  angleRate,
   confusionNotes,
   labelOf,
+  reportText,
 } from './sighting.js';
 import { describeBody, issSummary, nearbyBrightBodies, weatherSummary } from './sky.js';
 
@@ -259,14 +265,28 @@ export function renderReport(ctx, sighting) {
   return h('section', { class: 'screen' },
     kicker,
     h('h1', {}, formatWhen(sighting.observedAt, ctx.state.clock)),
+    h('p', { class: 'hint' }, formatUtc(sighting.observedAt)),
     h('p', { class: 'lede' }, sightingPlace(sighting)),
     h('div', { class: 'row-actions' },
+      h('button', { class: 'btn btn-primary', type: 'button', onClick: () => ctx.copyText(reportText(sighting, ctx.state.clock)) }, 'Bericht kopieren'),
       Number.isFinite(sighting.lat)
         ? h('button', { class: 'btn btn-ghost', type: 'button', onClick: () => ctx.copyText(decimalPair(sighting.lat, sighting.lon)) }, 'Koordinaten kopieren')
         : null,
       h('a', { class: 'btn btn-ghost', href: 'https://www.uap-research.org/ufo-uap-meldestelle/', target: '_blank', rel: 'noreferrer' }, 'GEP-Meldestelle'),
     ),
     h('form', { class: 'stack', onSubmit: (event) => event.preventDefault() },
+      field('Zeugen, dich eingeschlossen', h('input', {
+        type: 'number', min: '1', max: '99', value: sighting.witnesses,
+        onInput: (event) => { sighting.witnesses = Number(event.target.value); touch(); },
+      })),
+      field('Du selbst', h('select', {
+        value: sighting.stance,
+        onChange: (event) => { sighting.stance = event.target.value; touch(); },
+      }, h('option', { value: '', selected: sighting.stance === '' }, 'Noch offen'), options(STANCES, sighting.stance))),
+      field('Zuerst bemerkt', h('select', {
+        value: sighting.noticed,
+        onChange: (event) => { sighting.noticed = event.target.value; touch(); },
+      }, h('option', { value: '', selected: sighting.noticed === '' }, 'Noch offen'), options(NOTICED, sighting.noticed))),
       field('Anzahl', h('input', {
         type: 'number', min: '1', max: '99', value: sighting.count,
         onInput: (event) => { sighting.count = Number(event.target.value); touch(); },
@@ -343,7 +363,7 @@ export function renderReport(ctx, sighting) {
       }, `${deg}°`))),
       h('div', { class: 'stack' },
         h('button', { class: 'btn btn-ghost', type: 'button', onClick: () => ctx.addTrack(sighting) }, 'Weiteren Punkt stempeln'),
-        h('p', { class: 'hint' }, 'Gleicher Vorgang, neue Uhrzeit. Richtung und Höhe nimmst du vom Stand jetzt.'),
+        h('p', { class: 'hint' }, rateHint(sighting) || 'Gleicher Vorgang, neue Uhrzeit. Richtung und Höhe nimmst du vom Stand jetzt. So lässt sich später die Winkeländerung angeben, nicht eine geratene Geschwindigkeit.'),
         sighting.tracks.length
           ? h('div', { class: 'stack' }, ...sighting.tracks.map((track) => h('p', { class: 'hint' }, trackLine(track))))
           : null,
@@ -352,10 +372,24 @@ export function renderReport(ctx, sighting) {
         type: 'text', value: sighting.durationMin, maxlength: '40', placeholder: 'z. B. 20 Sekunden',
         onInput: (event) => { sighting.durationMin = event.target.value; touch(); },
       })),
+      field('Wie es endete', h('select', {
+        value: sighting.ending,
+        onChange: (event) => { sighting.ending = event.target.value; touch(); },
+      }, h('option', { value: '', selected: sighting.ending === '' }, 'Noch offen'), options(ENDINGS, sighting.ending))),
+      field('Geruch', h('input', {
+        type: 'text', value: sighting.smell, maxlength: '80', placeholder: 'keiner, oder schweflig, süß, verbrannt',
+        onInput: (event) => { sighting.smell = event.target.value; touch(); },
+      })),
       field('Geräusch', h('select', {
         value: sighting.sound,
         onChange: (event) => { sighting.sound = event.target.value; touch(); },
       }, options(SOUNDS, sighting.sound))),
+      h('fieldset', { class: 'checks' },
+        h('legend', {}, 'Umgebung, nur was du bemerkt hast'),
+        check('Tiere wurden unruhig', sighting.effects.animals, (checked) => { sighting.effects.animals = checked; touch(); }),
+        check('Motor oder Licht stotterte', sighting.effects.vehicle, (checked) => { sighting.effects.vehicle = checked; touch(); }),
+        check('Handy, Funk oder Kompass spielte verrückt', sighting.effects.device, (checked) => { sighting.effects.device = checked; touch(); }),
+      ),
       h('fieldset', { class: 'checks' },
         h('legend', {}, 'Verwechslung prüfen'),
         check('Blinkte', sighting.blink, (checked) => { sighting.blink = checked; touch(); }),
@@ -395,6 +429,7 @@ export function renderReport(ctx, sighting) {
         h('p', { class: 'hint' }, 'Tippen, sprechen, nochmal tippen. Höchstens anderthalb Minuten. Die Datei geht nicht in den Export.'),
       ),
       memoBlock(sighting),
+      sketchBlock(sighting, ctx),
       photoBlock(sighting),
       sighting.skyHint ? h('p', { class: 'hint' }, `Zum Zeitpunkt: ${sighting.skyHint}`) : null,
     ),
@@ -497,6 +532,97 @@ function svgEl(name, attrs, ...children) {
     if (child) node.append(child);
   }
   return node;
+}
+
+function rateHint(sighting) {
+  const rate = angleRate(sighting);
+  if (rate == null) return '';
+  if (rate < 0.05) return 'Zwischen erstem und letztem Punkt hat sich der Winkel kaum geändert.';
+  return `Zwischen erstem und letztem Punkt etwa ${rate.toFixed(2)} °/s. Das ist die Winkeländerung, nicht eine Entfernung.`;
+}
+
+function sketchBlock(sighting, ctx) {
+  const canvas = h('canvas', { class: 'sketch', width: '640', height: '360' });
+  const draw = { down: false, erase: false, ink: '#e2a45c', paper: '#0e141b' };
+  queueMicrotask(() => {
+    if (!canvas.isConnected) return;
+    const night = document.documentElement.dataset.night;
+    draw.paper = night === 'day' ? '#fffaf3' : night === 'red' ? '#140606' : '#0e141b';
+    draw.ink = night === 'day' ? '#241c15' : night === 'red' ? '#ffd2d2' : '#e2a45c';
+    const pen = canvas.getContext('2d');
+    const paintPaper = () => {
+      pen.fillStyle = draw.paper;
+      pen.fillRect(0, 0, canvas.width, canvas.height);
+    };
+    paintPaper();
+    if (sighting.sketch instanceof Blob) {
+      const url = URL.createObjectURL(sighting.sketch);
+      const image = new Image();
+      image.onload = () => {
+        pen.drawImage(image, 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(url);
+      };
+      image.src = url;
+    }
+    const point = (event) => {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: (event.clientX - rect.left) * (canvas.width / rect.width),
+        y: (event.clientY - rect.top) * (canvas.height / rect.height),
+      };
+    };
+    canvas.addEventListener('pointerdown', (event) => {
+      draw.down = true;
+      canvas.setPointerCapture(event.pointerId);
+      const at = point(event);
+      pen.beginPath();
+      pen.moveTo(at.x, at.y);
+    });
+    canvas.addEventListener('pointermove', (event) => {
+      if (!draw.down) return;
+      const at = point(event);
+      pen.strokeStyle = draw.erase ? draw.paper : draw.ink;
+      pen.lineWidth = draw.erase ? 28 : 4;
+      pen.lineCap = 'round';
+      pen.lineJoin = 'round';
+      pen.lineTo(at.x, at.y);
+      pen.stroke();
+    });
+    const finish = () => {
+      if (!draw.down) return;
+      draw.down = false;
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        sighting.sketch = blob;
+        sighting.described = true;
+        sighting.updatedAt = Date.now();
+        ctx.persistSighting(sighting);
+      }, 'image/png');
+    };
+    canvas.addEventListener('pointerup', finish);
+    canvas.addEventListener('pointercancel', finish);
+    canvas.dataset.clear = '1';
+    canvas.__horizontClear = () => {
+      paintPaper();
+      sighting.sketch = null;
+      sighting.updatedAt = Date.now();
+      ctx.persistSighting(sighting);
+    };
+  });
+  return h('div', { class: 'field' },
+    h('span', { class: 'field-label' }, 'Skizze, bleibt auf diesem Gerät'),
+    canvas,
+    h('div', { class: 'row-actions' },
+      h('button', { class: 'btn btn-ghost', type: 'button', onClick: () => { draw.erase = false; } }, 'Stift'),
+      h('button', { class: 'btn btn-ghost', type: 'button', onClick: () => { draw.erase = true; } }, 'Radierer'),
+      h('button', {
+        class: 'btn btn-ghost',
+        type: 'button',
+        onClick: () => canvas.__horizontClear?.(),
+      }, 'Leeren'),
+    ),
+    h('p', { class: 'hint' }, 'Auch eine grobe Skizze hält Lichter und Umriss fest. Sie geht nicht in den Export.'),
+  );
 }
 
 let memoUrl = null;
@@ -690,7 +816,7 @@ export function renderLog(ctx) {
       h('button', { class: 'btn btn-ghost', type: 'button', onClick: ctx.exportAll, disabled: rows.length ? null : true }, 'Export'),
       h('button', { class: 'btn btn-ghost', type: 'button', onClick: ctx.pickImport }, 'Import'),
     ),
-    h('p', { class: 'hint' }, 'Fotos und Sprachmemos bleiben beim Export außen vor. Sie liegen nur in diesem Browser.'),
+    h('p', { class: 'hint' }, 'Fotos, Skizzen und Sprachmemos bleiben beim Export außen vor. Sie liegen nur in diesem Browser. Der kopierte Bericht enthält den Text.'),
   );
 }
 
@@ -746,7 +872,7 @@ export function renderWissen() {
       h('li', {}, 'Linsenreflexe und Kondensstreifen bewegen sich mit der Kamera oder dem Wind, nicht frei am Himmel.'),
     ),
     h('h2', {}, 'Eine brauchbare Meldung'),
-    h('p', {}, 'Uhrzeit, Ort, Blickrichtung, Höhe über dem Horizont, Dauer, Anzahl, ob es blinkte, ob der Kurs gerade war, und was du schon ausgeschlossen hast. Ein Foto hilft nur mit dieser Angabe. Die GEP nimmt Meldungen aus dem deutschsprachigen Raum entgegen.'),
+    h('p', {}, 'Uhrzeit in UTC, Ort, Blickrichtung und Höhe am Anfang und am Ende, Dauer, wie es aus dem Blick verschwand, Anzahl der Zeugen, ob du standest oder fuhrst, Winkelgröße statt einer geratenen Entfernung. Ein Foto oder eine Skizze hilft nur mit dieser Angabe. Die GEP nimmt Meldungen aus dem deutschsprachigen Raum entgegen. Horizont schickt nichts selbst weg. „Bericht kopieren“ legt denselben Text in die Zwischenablage.'),
     h('p', {}, h('a', { href: 'https://www.uap-research.org/ufo-uap-meldestelle/', target: '_blank', rel: 'noreferrer' }, 'GEP-Meldestelle öffnen')),
     h('h2', {}, 'Was Horizont nicht tut'),
     h('p', {}, 'Nichts verlässt das Gerät, außer du exportierst eine Datei oder öffnest einen externen Link. Es gibt keine gemeinsame Karte, keine Flugzeug-Radarlage und keine Vorhersage aller Satellitenpässe. Dafür bräuchte es ein Backend und laufend neue Bahndaten. Die eigene Meldung, der eigene Himmel und die eigene Sitzung gehen auch ohne Netz, sobald die Seite geladen ist.'),
