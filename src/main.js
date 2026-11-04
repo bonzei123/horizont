@@ -9,6 +9,7 @@ import {
   pauseGuide,
   pickAudioOutput,
   playProbe,
+  preloadVoice,
   setGuideVolume,
   stopGuide,
   unlockGuide,
@@ -265,6 +266,7 @@ function render() {
   else page = renderFeld(ctx);
   main.replaceChildren(page);
   setNav();
+  if (state.route.name === 'ce5' || state.route.name === 'sitzung') preloadVoice();
 }
 
 function canRebuild() {

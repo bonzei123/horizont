@@ -363,7 +363,7 @@ function photoBlock(sighting) {
 function audioPanel(ctx) {
   return h('div', { class: 'panel stack' },
     h('h2', {}, 'Führung'),
-    h('p', { class: 'hint' }, 'Die Stimme liest jede Phase vor und geht weiter, wenn die Zeit um ist. Der Ruheton ist eine leise Stütze in Phase zwei und drei. Der Dog Whistle ist aus und für die Übung unnötig.'),
+    h('p', { class: 'hint' }, 'Eine ruhige Stimme aus der App liest jede Phase vor und geht weiter, wenn die Zeit um ist. Der Ruheton ist eine leise Stütze in Phase zwei und drei. Der Dog Whistle ist aus und für die Übung unnötig.'),
     audioControls(ctx),
   );
 }
@@ -553,7 +553,7 @@ export function renderWissen() {
     h('h2', {}, 'Die Hynek-Skala'),
     h('p', {}, 'J. Allen Hynek sortierte Berichte nach Nähe und Spur, nicht nach einer Erklärung. Nachtlicht, Tagesscheibe, Radar und Sicht zugleich, dann die nahen Begegnungen: nur gesehen, mit physikalischer Wirkung, mit einer beschriebenen Gestalt. CE5 steht nicht in dieser Skala. Den Begriff hat Steven Greer später für einen von Menschen begonnenen Kontaktversuch gesetzt.'),
     h('h2', {}, 'Was die Übung ist'),
-    h('p', {}, 'Die CE5-Sitzung folgt dem öffentlich beschriebenen Ablauf: sicherer Ort, ruhige und friedliche Absicht, eine kurze innere Einladung, dann schweigendes Schauen und ein Protokoll. Eine Stimme führt durch die Phasen. In der zweiten und dritten Phase kann ein leiser Ton mitlaufen. Der ist für dich, kein Signal an den Himmel, und er ist nicht die kommerzielle Tonfolge von CSETI. Lichtsignale und Laser sind nicht dabei. Wer einen Laser in den Himmel hält, gefährdet Luftfahrzeuge. Das ist in Deutschland strafbar.'),
+    h('p', {}, 'Die CE5-Sitzung folgt dem öffentlich beschriebenen Ablauf: sicherer Ort, ruhige und friedliche Absicht, eine kurze innere Einladung, dann schweigendes Schauen und ein Protokoll. Eine ruhige Stimme aus der App führt durch die Phasen, langsamer als die Stimme des Telefons. Fehlt die Datei, spricht das Gerät selbst. In der zweiten und dritten Phase kann ein leiser Ton mitlaufen. Der ist für dich, kein Signal an den Himmel, und er ist nicht die kommerzielle Tonfolge von CSETI. Lichtsignale und Laser sind nicht dabei. Wer einen Laser in den Himmel hält, gefährdet Luftfahrzeuge. Das ist in Deutschland strafbar.'),
     h('p', {}, 'Ein UAP-Dog-Whistle gehört nicht zur Übung. Öffentliche JavaScript-Beispiele stapeln 100 Hz mit 7,83 Hz, 432 Hz, 528 Hz, kurze Töne bei 2,5 kHz und Pings bei 17 kHz. Die Vorlage ist ein unbestätigter Beitrag, kein Messverfahren. In Horizont ist das ein Schalter und zu Beginn aus. Die Führung läuft ohne ihn. In der stillen Wache bleibt er aus, damit du den Himmel hörst.'),
     h('h2', {}, 'Was fast immer etwas Bekanntes ist'),
     h('ul', {},

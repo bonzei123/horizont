@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import test from 'node:test';
 import {
   angleDiff,
@@ -113,6 +114,15 @@ test('backup round trip drops photos and rejects junk', () => {
   assert.equal(parsed.sightings[0].photo, null);
   assert.equal(parsed.sessions[0].id, 'c1');
   assert.throws(() => parseBackup({ app: 'horizont' }), /Horizont-Export/);
+});
+
+test('calm voice clips cover every spoken line', () => {
+  const ids = [...PHASES.map((phase) => phase.id), 'bridge', 'closing'];
+  for (const id of ids) {
+    const file = `public/voice/${id}.mp3`;
+    assert.ok(fs.existsSync(file), file);
+    assert.ok(fs.statSync(file).size > 8000, file);
+  }
 });
 
 test('CE5 protocol has five phases and a running clock', () => {

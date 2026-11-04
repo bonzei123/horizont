@@ -140,8 +140,8 @@ export function enterPhase(session, { tone, whistle: useWhistle = false, again =
   stopSpeech();
   const ready = unlockGuide(sinkId);
   report('Spricht.');
-  const spoken = speak(phase.speech);
-  void ready.then(() => { if (my === token) chime(); });
+  const spoken = speak(phase.speech, phase.id);
+  void ready.then(() => { if (my === token) preloadVoice(); });
   spoken.then((heard) => {
     if (my !== token) return;
     const line = applyFieldSound(session, { tone, whistle: useWhistle, speakStatus: heard });
@@ -200,9 +200,9 @@ export function finishPhase() {
   stopDrone();
   stopWhistle();
   stopSpeech();
-  chime();
+  bowl();
   report('Die Zeit ist um.');
-  return speak(BRIDGE_SPEECH).then(() => my === token);
+  return speak(BRIDGE_SPEECH, 'bridge').then(() => my === token);
 }
 
 export function closeGuide() {
@@ -211,13 +211,28 @@ export function closeGuide() {
   stopDrone();
   stopWhistle();
   stopSpeech();
-  chime();
+  bowl();
   report('Die Sitzung ist zu.');
-  speak(CLOSING_SPEECH).finally(() => {
+  speak(CLOSING_SPEECH, 'closing').finally(() => {
     if (my !== token) return;
     releaseWake();
     report('');
   });
+}
+
+function bowl() {
+  if (!audioCtx || !master) return;
+  const now = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.value = 196;
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(0.04, now + 0.05);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.8);
+  osc.connect(gain).connect(master);
+  osc.start(now);
+  osc.stop(now + 1.9);
 }
 
 function chime() {
@@ -389,17 +404,89 @@ function stopDrone() {
   }
 }
 
+const VOICE_CLIPS = ['ort', 'kohaerenz', 'einladung', 'wache', 'abschluss', 'bridge', 'closing'];
+const voiceCache = new Map();
+let voiceSource = null;
+let voiceDone = null;
 let speechToken = 0;
 
-function speak(text) {
+export function preloadVoice() {
+  if (!ensureGraph()) return;
+  for (const id of VOICE_CLIPS) void loadVoice(id).catch(() => {});
+}
+
+function voiceUrl(id) {
+  return `${import.meta.env.BASE_URL}voice/${id}.mp3`;
+}
+
+function loadVoice(id) {
+  const cached = voiceCache.get(id);
+  if (cached) return cached;
+  const pending = fetch(voiceUrl(id)).then(async (response) => {
+    if (!response.ok) throw new Error(String(response.status));
+    const bytes = await response.arrayBuffer();
+    if (!ensureGraph()) throw new Error('no audio');
+    return audioCtx.decodeAudioData(bytes.slice(0));
+  }).catch((error) => {
+    voiceCache.delete(id);
+    throw error;
+  });
+  voiceCache.set(id, pending);
+  return pending;
+}
+
+function speak(text, clipId) {
+  const mine = ++speechToken;
+  cancelVoice();
+  window.speechSynthesis?.cancel();
+  if (!clipId) return speakSystem(text, mine);
+  return playClip(clipId, mine).then((played) => {
+    if (played || mine !== speechToken) return played;
+    report('Die ruhige Stimme fehlt. Es spricht die Systemstimme.');
+    return speakSystem(text, mine);
+  });
+}
+
+function playClip(id, mine) {
+  if (!ensureGraph()) return Promise.resolve(false);
+  const resume = audioCtx.state === 'suspended' ? audioCtx.resume().catch(() => {}) : Promise.resolve();
+  return resume.then(() => loadVoice(id)).then((buffer) => new Promise((resolve) => {
+    if (mine !== speechToken || !buffer) {
+      resolve(false);
+      return;
+    }
+    const source = audioCtx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(master);
+    let settled = false;
+    const done = (ok) => {
+      if (settled) return;
+      settled = true;
+      if (voiceSource === source) voiceSource = null;
+      if (voiceDone === done) voiceDone = null;
+      resolve(ok && mine === speechToken);
+    };
+    source.onended = () => done(true);
+    voiceSource = source;
+    voiceDone = done;
+    try {
+      source.start();
+    } catch {
+      done(false);
+      return;
+    }
+    window.setTimeout(() => done(true), buffer.duration * 1000 + 1500);
+  })).catch(() => false);
+}
+
+function speakSystem(text, mine) {
   const synth = window.speechSynthesis;
   if (!synth || typeof SpeechSynthesisUtterance === 'undefined') return Promise.resolve(false);
-  const mine = ++speechToken;
   synth.cancel();
   return new Promise((resolve) => {
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'de-DE';
-    utterance.rate = 0.92;
+    utterance.rate = 0.88;
     const voice = pickGermanVoice(synth.getVoices());
     if (voice) utterance.voice = voice;
     let settled = false;
@@ -408,7 +495,7 @@ function speak(text) {
       settled = true;
       resolve(ok);
     };
-    utterance.onend = () => done(true);
+    utterance.onend = () => done(mine === speechToken);
     utterance.onerror = () => done(false);
     window.setTimeout(() => {
       if (mine !== speechToken) {
@@ -417,7 +504,7 @@ function speak(text) {
       }
       synth.speak(utterance);
     }, 40);
-    window.setTimeout(() => done(true), text.length * 130 + 4000);
+    window.setTimeout(() => done(mine === speechToken), text.length * 130 + 4000);
   });
 }
 
@@ -427,9 +514,26 @@ function pickGermanVoice(voices) {
     || null;
 }
 
+function cancelVoice() {
+  const source = voiceSource;
+  const done = voiceDone;
+  voiceSource = null;
+  voiceDone = null;
+  if (source) {
+    source.onended = null;
+    try {
+      source.stop();
+    } catch {
+      /* already stopped */
+    }
+  }
+  done?.(false);
+}
+
 function stopSpeech() {
   speechToken += 1;
   window.speechSynthesis?.cancel();
+  cancelVoice();
 }
 
 async function holdWake() {

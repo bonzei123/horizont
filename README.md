@@ -40,7 +40,7 @@ GPS funktioniert auf GitHub Pages, weil die Seite über HTTPS ausgeliefert wird.
 - Kompass, falls das Gerät einen hat
 - Sichtung stempeln: Zeitpunkt und Ort sofort, Beschreibung danach
 - Prüfung auf Flugzeug, Satellit, Starlink und helle Planeten
-- CE5-Sitzung in fünf Phasen, etwa 35 Minuten, mit Stimme, die weiterführt, Pause und eigenem Stempel
+- CE5-Sitzung in fünf Phasen, etwa 35 Minuten, mit ruhiger Stimme, die weiterführt, Pause und eigenem Stempel
 - Ruheton in Phase zwei und drei, Ausgabe wählbar, soweit der Browser das kann
 - Optionaler Dog Whistle, zu Beginn aus, nur in Phase zwei und drei
 - Rotlicht für die Nachtsehschärfe, dazu Nacht- und Tagdarstellung
@@ -49,9 +49,9 @@ GPS funktioniert auf GitHub Pages, weil die Seite über HTTPS ausgeliefert wird.
 
 Fotos bleiben im Browser und kommen im JSON-Export nicht mit. Eine Meldung an die [GEP](https://www.uap-research.org/ufo-uap-meldestelle/) schickt die App nicht selbst ab. Der Link liegt in der Meldung.
 
-CE5 ist hier der öffentlich beschriebene Übungsrahmen: ruhige Absicht, stille Beobachtung, Protokoll. Die Stimme führt durch die Phasen. Der Ruheton ist eine leise Stütze und kein Signal, und er ist nicht die kommerzielle CSETI-Tonfolge. Der Dog Whistle ist ein zusätzlicher Schalter und zu Beginn aus. Er spielt denselben öffentlichen Stapel, den mehrere JavaScript-Beispiele erzeugen: 100 Hz mit 7,83 Hz, 432 Hz, 528 Hz, kurze Töne bei 2,5 kHz und leise Pings bei 17 kHz. Die Übung braucht ihn nicht, und die App behauptet nicht, dass er etwas am Himmel bewirkt. Laser gehören nicht dazu. Einen Laser auf ein Luftfahrzeug zu richten ist in Deutschland strafbar.
+CE5 ist hier der öffentlich beschriebene Übungsrahmen: ruhige Absicht, stille Beobachtung, Protokoll. Die Führung spricht mit einer langsamen Stimme, die in der App liegt (Thorsten Müller, [Thorsten-Voice](https://www.thorsten-voice.de/), Daten unter CC0). Sie folgt der gewählten Ausgabe. Fehlt die Datei, spricht die Systemstimme. Der Ruheton ist eine leise Stütze und kein Signal, und er ist nicht die kommerzielle CSETI-Tonfolge. Der Dog Whistle ist ein zusätzlicher Schalter und zu Beginn aus. Er spielt denselben öffentlichen Stapel, den mehrere JavaScript-Beispiele erzeugen: 100 Hz mit 7,83 Hz, 432 Hz, 528 Hz, kurze Töne bei 2,5 kHz und leise Pings bei 17 kHz. Die Übung braucht ihn nicht, und die App behauptet nicht, dass er etwas am Himmel bewirkt. Laser gehören nicht dazu. Einen Laser auf ein Luftfahrzeug zu richten ist in Deutschland strafbar.
 
-Bluetooth-Kopfhörer oder -lautsprecher zuerst im Gerät koppeln. Die Seite kann kein Gerät paaren. Wo der Browser es erlaubt, wählt „Ausgabe wählen“ die schon gekoppelte Quelle für die Töne. Die gesprochene Stimme folgt auf vielen Telefonen der Systemausgabe. Den Bildschirm während der Führung anlassen, sonst stoppt das Telefon die Stimme oft mit dem Sperren.
+Bluetooth-Kopfhörer oder -lautsprecher zuerst im Gerät koppeln. Die Seite kann kein Gerät paaren. Wo der Browser es erlaubt, wählt „Ausgabe wählen“ die schon gekoppelte Quelle. Die ruhige Stimme und die Töne laufen darüber. Den Bildschirm während der Führung anlassen, sonst stoppt das Telefon die Wiedergabe oft mit dem Sperren.
 
 ## Auf einem NAS mit Docker
 
